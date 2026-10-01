@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tortue en autoévaluation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -220,7 +225,7 @@ pre.code{margin:0; font-family:var(--font-mono); font-size:.9rem; line-height:1.
 .turns svg{width:56px; height:56px; display:block; margin:0 auto 4px}
 .hist-hero{position:relative; overflow:hidden; background:var(--hero); color:var(--hero-fg); border-radius:18px; padding:30px 26px 26px; display:grid; gap:16px; margin-bottom:28px; border:2px solid var(--hero)}
 .hist-hero::after{content:""; position:absolute; inset:0 0 0 45%; background-image:radial-gradient(ellipse 4px 7px at center, var(--hole) 96%, transparent 100%); background-size:20px 30px; -webkit-mask-image:linear-gradient(90deg, transparent, #000 60%); mask-image:linear-gradient(90deg, transparent, #000 60%); pointer-events:none}
-.hist-hero > *{position:relative; z-index:1}
+.hist-hero > *{position:relative; z-index:1; min-width:0}
 .hero-eyebrow{font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:700; color:var(--pop)}
 .hist-title{font-size:clamp(2.3rem,7.5vw,4.6rem); font-weight:800; line-height:.95; letter-spacing:-.025em}
 .hist-title .pop{display:inline-block; background:var(--pop); color:var(--pop-ink); padding:0 .14em .04em; border-radius:6px; transform:rotate(-2deg)}
@@ -289,7 +294,7 @@ pre.code{margin:0; font-family:var(--font-mono); font-size:.9rem; line-height:1.
 .who{font-weight:700; font-size:.95rem}
 .who:empty{display:none}
 .time-btn{font-size:.85rem; padding:7px 12px; border-color:var(--margin); color:var(--margin)}
-.name-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; max-width:620px}
+.name-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr)); gap:12px; max-width:620px}
 .name-form .f{color:var(--hero-fg); font-size:.9rem}
 .name-form input{font-size:1.1rem; padding:10px 12px}
 .goals{margin:0; padding:0; list-style:none; display:grid; gap:8px}
@@ -372,7 +377,9 @@ section.step{display:none}
 section.step.on{display:block}
 @media (prefers-reduced-motion: reduce){ .flash-inner, .bar i{transition:none} }
 </style>
-
+<style>html{color-scheme:light} body{margin:0} img{max-width:100%} [hidden]{display:none!important}</style>
+</head>
+<body>
 <div class="topbar" id="topbar" hidden>
   <div class="topbar-in"><span class="topbar-label">Ma progression</span><div class="topbar-track" role="progressbar" aria-label="Progression dans l'activité" aria-valuemin="0" aria-valuemax="100" id="topTrack"><i id="topFill"></i></div><b id="topPct">0 %</b></div>
 </div>
@@ -395,11 +402,8 @@ section.step.on{display:block}
     <div class="hist-hero">
       <span class="hero-eyebrow">SNT · Bienvenue</span>
       <h2 class="hist-title">Prêt·e à piloter<br>la <span class="pop">tortue</span> ?</h2>
-      <p class="hero-sub">Avant de commencer, écris ton nom et ton prénom : ils apparaîtront sur tes résultats.</p>
-      <div class="name-form">
-        <label class="f" for="stNom">Nom de famille<input type="text" id="stNom" autocomplete="family-name" maxlength="40"></label>
-        <label class="f" for="stPrenom">Prénom<input type="text" id="stPrenom" autocomplete="given-name" maxlength="40"></label>
-      </div>
+      <p class="hero-sub">Avant de commencer, lis tes objectifs : à la fin, tu feras toi-même le point sur chacun d'eux.</p>
+
     </div>
     <div class="card stack" style="max-width:760px">
       <h3>Mes objectifs pour cette séance</h3>
@@ -421,7 +425,7 @@ section.step.on{display:block}
   <div id="viewResults" hidden>
     <div class="hist-hero">
       <span class="hero-eyebrow" id="resDate"></span>
-      <h2 class="hist-title">Mon bilan,<br><span class="pop" id="resName"></span></h2>
+      <h2 class="hist-title">Mon <span class="pop">bilan</span></h2>
       <p class="hero-sub" id="resComment"></p>
     </div>
 
@@ -873,7 +877,7 @@ function toast(msg) { const t = h('div', { class: 'toast', role: 'status' }, msg
 function fb(el, kind, msg) { el.className = 'feedback ' + (kind || ''); el.innerHTML = msg || ''; }
 
 /* ============ Sauvegarde ============ */
-const KEY = 'tortue-snt-autoeval-v1';
+const KEY = 'tortue-snt-autoeval-v2';
 function load() { try { return Object.assign({ unlocked: 0, done: {}, code: {}, ex: {}, follow: {}, dict: {}, pred: {} }, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return { unlocked: 0, done: {}, code: {}, ex: {}, follow: {}, dict: {}, pred: {} }; } }
 let S = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (typeof updateTopProgress === 'function') updateTopProgress(); }
@@ -1733,12 +1737,8 @@ function showView(v) {
   window.scrollTo({ top: 0 });
   if (v === 'Steps') requestAnimationFrame(redrawAll);
 }
-function showWho() { $('#whoAmI').textContent = S.student ? `${S.student.prenom} ${S.student.nom.toUpperCase()}` : ''; }
-$('#startBtn').onclick = () => {
-  const nom = $('#stNom').value.trim(), prenom = $('#stPrenom').value.trim();
-  if (!nom || !prenom) { fb($('#welcomeFb'), 'warn', 'Écris ton nom de famille et ton prénom pour commencer.'); (nom ? $('#stPrenom') : $('#stNom')).focus(); return; }
-  S.student = { nom, prenom }; save(); showWho(); showView('Steps'); go(current);
-};
+function showWho() { $('#whoAmI').textContent = ''; }
+$('#startBtn').onclick = () => { S.started = true; save(); showView('Steps'); go(current); };
 $$('.next-bar').forEach(nb => nb.insertBefore(h('button', { class: 'btn quiet time-btn', 'data-time': true }, 'Temps terminé, voir mon bilan'), nb.lastElementChild));
 $$('[data-time]').forEach(b => b.addEventListener('click', openBilan));
 function openBilan() { if (!S.finished) { S.finished = true; S.finishedAt = Date.now(); } S.review = false; save(); renderResults(); showView('Results'); }
@@ -1785,17 +1785,15 @@ const OBJ = [
 ];
 function goReview(step) { S.review = true; S.lsQuizOpen = true; save(); showView('Steps'); renderNav(); go(step); $$('[data-time]').forEach(b => b.textContent = 'Revenir à mon bilan'); }
 function bilanComment() {
-  const p = S.student ? S.student.prenom : '';
   const self = S.self || {}, rated = OBJ.filter((_, i) => self[i]).length, ok = OBJ.filter((_, i) => self[i] === 'ok').length;
-  if (rated < OBJ.length) return `Bravo pour ton travail, ${p} ! Regarde tes résultats et fais le point sur chaque objectif : c'est comme ça qu'on progresse.`;
-  if (ok === OBJ.length) return `Tu estimes maîtriser les 6 objectifs, ${p} : super ! Tu es prêt·e pour la suite. Tu peux aussi aider un camarade.`;
-  if (ok >= 3) return `Tu estimes maîtriser ${ok} objectifs sur 6, ${p}. C'est une belle séance ! Prends le temps de revoir les autres parties : tu as tout ce qu'il faut.`;
-  return `Merci pour ton honnêteté, ${p}. Apprendre à programmer prend du temps, et tu as déjà fait tes premiers pas. Revois une partie à la fois, et pose ta question à ton professeur.`;
+  if (rated < OBJ.length) return `Bravo pour ton travail ! Regarde tes résultats et fais le point sur chaque objectif : c'est comme ça qu'on progresse.`;
+  if (ok === OBJ.length) return `Tu estimes maîtriser les 6 objectifs : super ! Tu es prêt·e pour la suite. Tu peux aussi aider un camarade.`;
+  if (ok >= 3) return `Tu estimes maîtriser ${ok} objectifs sur 6. C'est une belle séance ! Prends le temps de revoir les autres parties : tu as tout ce qu'il faut.`;
+  return `Merci pour ton honnêteté. Apprendre à programmer prend du temps, et tu as déjà fait tes premiers pas. Revois une partie à la fois, et pose ta question à ton professeur.`;
 }
 function renderResults() {
   const d = new Date(S.finishedAt || Date.now());
   $('#resDate').textContent = 'Premiers pas avec la tortue · ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  $('#resName').textContent = S.student ? S.student.prenom : '';
   $('#resComment').textContent = bilanComment();
   S.self = S.self || {};
   const list = $('#selfList'); list.innerHTML = '';
@@ -1839,7 +1837,6 @@ async function buildSheet() {
   g.fillStyle = INK; g.fillRect(0, 0, W, 190);
   g.fillStyle = '#ffc93c'; g.font = `700 22px ${BODY}`; g.textAlign = 'left'; g.fillText('SNT · PREMIERS PAS AVEC LA TORTUE · ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase(), 70, 70);
   g.fillStyle = '#ffffff'; g.font = `800 64px ${DISP}`; g.fillText('Mon bilan', 70, 145);
-  g.textAlign = 'right'; g.font = `800 40px ${DISP}`; g.fillText(S.student ? `${S.student.prenom} ${S.student.nom.toUpperCase()}` : '', W - 70, 145);
   let y = 250;
   OBJ.forEach((o, i) => {
     const r = o.res(), v = (S.self || {})[i];
@@ -1870,8 +1867,8 @@ async function buildSheet() {
 }
 $('#dlBtn').onclick = async () => {
   const c = await buildSheet();
-  const base = S.student ? `${S.student.nom}-${S.student.prenom}` : 'eleve';
-  const name = ('bilan-tortue-' + base).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9-]+/g, '-').toLowerCase() + '.png';
+  const dt = new Date(S.finishedAt || Date.now());
+  const name = ('bilan-tortue-' + dt.toISOString().slice(0, 10)).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9-]+/g, '-').toLowerCase() + '.png';
   c.toBlob(blob => {
     if (!blob) { fb($('#dlFb'), 'bad', 'Le fichier n\'a pas pu être créé. Appelle ton professeur.'); return; }
     const url = URL.createObjectURL(blob);
@@ -1895,6 +1892,8 @@ onShow[3] = () => lsEd.redraw(); onShow[5] = () => exEd.redraw(); onShow[6] = ()
 showWho();
 if (S.finished && !S.review) { renderResults(); showView('Results'); }
 else if (S.finished && S.review) { showView('Steps'); go(current); $$('[data-time]').forEach(b => b.textContent = 'Revenir à mon bilan'); }
-else if (!S.student) showView('Welcome');
+else if (!S.started) showView('Welcome');
 else { showView('Steps'); go(current); }
 </script>
+</body>
+</html>
