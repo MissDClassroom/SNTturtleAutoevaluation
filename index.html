@@ -1,0 +1,1900 @@
+<title>Tortue en autoévaluation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : cahier à grands carreaux ; étapes en intercalaires en haut ; zone de travail en deux colonnes (consigne | tableau de la tortue) */
+:root{
+  --paper:#f4f6fb; --surface:#ffffff; --ink:#1b2550; --muted:#5b6587;
+  --rule:#e1e6f4; --rule-strong:#b8c3e3;
+  --accent:#2a44c4; --accent-soft:#e7ebfb; --on-accent:#ffffff;
+  --turtle:#23875a; --turtle-soft:#e0f2e8;
+  --margin:#d63c48; --margin-soft:#fbe6e8; --warn:#9a5d00; --warn-soft:#fdf1dc;
+  --font-display:'Bricolage Grotesque','Trebuchet MS',sans-serif;
+  --font-body:'Atkinson Hyperlegible','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --radius:10px;
+  --gold:#d9a400; --silver:#8c98ad; --bronze:#b56d34; --medal:var(--turtle);
+  --hero:#1b2550; --hero-fg:#f4f6fb; --hole:rgba(255,255,255,.10); --pop:#ffc93c; --pop-ink:#1b2550;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#10152a; --surface:#181f38; --ink:#e7ebfa; --muted:#a3acc9;
+  --rule:#20284a; --rule-strong:#36416c;
+  --accent:#8fa3ff; --accent-soft:#242e5a; --on-accent:#10152a;
+  --turtle:#5fd49a; --turtle-soft:#163a2a;
+  --margin:#ff7c85; --margin-soft:#3d1f29; --warn:#f2b456; --warn-soft:#3a2c12;
+  --hero:#0a0e1f; --hero-fg:#e7ebfa; --hole:rgba(255,255,255,.07); --pop:#ffd166; --pop-ink:#10152a;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --paper:#10152a; --surface:#181f38; --ink:#e7ebfa; --muted:#a3acc9;
+  --rule:#20284a; --rule-strong:#36416c;
+  --accent:#8fa3ff; --accent-soft:#242e5a; --on-accent:#10152a;
+  --turtle:#5fd49a; --turtle-soft:#163a2a;
+  --margin:#ff7c85; --margin-soft:#3d1f29; --warn:#f2b456; --warn-soft:#3a2c12;
+  --hero:#0a0e1f; --hero-fg:#e7ebfa; --hole:rgba(255,255,255,.07); --pop:#ffd166; --pop-ink:#10152a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  background-color:var(--paper); color:var(--ink);
+  background-image:linear-gradient(var(--rule) 1px, transparent 1px);
+  background-size:100% 32px;
+  font-family:var(--font-body); font-size:17px; line-height:1.55;
+}
+.wrap{max-width:1120px; margin:0 auto; padding-inline:16px; padding-block:20px 60px}
+h1,h2,h3{font-family:var(--font-display); line-height:1.15; text-wrap:balance; margin:0}
+h1{font-size:clamp(1.8rem,4.5vw,2.7rem); font-weight:800; letter-spacing:-.01em}
+h2{font-size:clamp(1.4rem,3vw,1.9rem); font-weight:800}
+h3{font-size:1.15rem; font-weight:600}
+p{margin:0}
+code,.mono{font-family:var(--font-mono); font-size:.9em}
+.eyebrow{font-size:.78rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); font-weight:700}
+.muted{color:var(--muted)}
+.stack{display:flex; flex-direction:column; gap:14px}
+.row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+
+/* En-tête façon étiquette de cahier */
+header.top{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:end; padding-left:22px; border-left:3px solid var(--margin); margin-bottom:18px}
+header.top .sub{color:var(--muted); max-width:60ch}
+.progress{min-width:180px}
+.bar{height:10px; background:var(--rule); border-radius:99px; overflow:hidden; margin-top:6px}
+.bar i{display:block; height:100%; background:var(--turtle); width:0; transition:width .4s}
+@media (max-width:640px){ header.top{grid-template-columns:1fr} }
+
+/* Intercalaires */
+.tabs-scroll{overflow-x:auto; margin-bottom:20px}
+nav.tabs{display:flex; gap:6px; min-width:max-content; border-bottom:2px solid var(--rule-strong)}
+nav.tabs button{
+  font:inherit; font-size:.92rem; font-weight:700; color:var(--muted);
+  background:var(--surface); border:2px solid var(--rule-strong); border-bottom:none;
+  border-radius:10px 10px 0 0; padding:8px 14px 7px; cursor:pointer; display:flex; gap:8px; align-items:center;
+  margin-bottom:-2px;
+}
+nav.tabs button .n{font-family:var(--font-mono); font-size:.8rem; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; background:var(--rule); color:var(--ink)}
+nav.tabs button[aria-current="true"]{color:var(--ink); border-color:var(--accent); background:var(--accent-soft); border-bottom:2px solid var(--accent-soft)}
+nav.tabs button.done .n{background:var(--turtle); color:var(--surface)}
+nav.tabs button:disabled{opacity:.45; cursor:not-allowed}
+nav.tabs button:focus-visible, .btn:focus-visible, .chip:focus-visible, .opt:focus-within, textarea:focus-visible, select:focus-visible, input:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+
+/* Cartes */
+.card{background:var(--surface); border:1px solid var(--rule-strong); border-radius:var(--radius); padding:20px}
+.step-head{display:flex; flex-direction:column; gap:6px; margin-bottom:18px; max-width:70ch}
+.work{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; align-items:start}
+.work > *{min-width:0}
+@media (max-width:880px){ .work{grid-template-columns:minmax(0,1fr)} }
+
+.btn{font:inherit; font-weight:700; font-size:.95rem; border-radius:8px; padding:9px 16px; cursor:pointer; border:2px solid var(--accent); background:var(--accent); color:var(--on-accent)}
+.btn.ghost{background:transparent; color:var(--accent)}
+.btn.quiet{background:transparent; border-color:var(--rule-strong); color:var(--ink)}
+.btn.go{background:var(--turtle); border-color:var(--turtle); color:var(--surface)}
+.btn:disabled{opacity:.4; cursor:not-allowed}
+.chip{font:inherit; font-size:.88rem; font-weight:700; border:2px solid var(--rule-strong); background:var(--surface); color:var(--ink); border-radius:99px; padding:5px 12px; cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-soft)}
+.chip:disabled{opacity:.4; cursor:not-allowed}
+.chip.ok::after{content:" ✓"; color:var(--turtle)}
+
+.feedback{border-radius:8px; padding:12px 14px; font-weight:700}
+.feedback:empty{display:none}
+.feedback.good{background:var(--turtle-soft); color:var(--turtle)}
+.feedback.bad{background:var(--margin-soft); color:var(--margin)}
+.feedback.info{background:var(--accent-soft); color:var(--ink); font-weight:400}
+.feedback.warn{background:var(--warn-soft); color:var(--warn)}
+
+.next-bar{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:26px; padding-top:18px; border-top:2px dashed var(--rule-strong)}
+
+/* Frise */
+.timeline{list-style:none; margin:0; padding:0; position:relative}
+.timeline::before{content:""; position:absolute; left:74px; top:6px; bottom:6px; width:2px; background:var(--rule-strong)}
+.timeline li{display:grid; grid-template-columns:62px minmax(0,1fr); gap:24px; padding-block:9px; position:relative}
+.timeline li::before{content:""; position:absolute; left:69px; top:17px; width:12px; height:12px; border-radius:50%; background:var(--turtle); border:2px solid var(--surface)}
+.timeline .y{font-family:var(--font-mono); font-weight:600; color:var(--accent); text-align:right; padding-top:2px}
+.timeline b{display:block}
+
+.video{display:grid; grid-template-columns:auto minmax(0,1fr); gap:16px; align-items:center; text-decoration:none; color:inherit; border:2px solid var(--accent); border-radius:var(--radius); padding:14px 18px; background:var(--accent-soft)}
+.video .play{width:52px; height:52px; border-radius:50%; background:var(--accent); display:grid; place-items:center}
+.video .play::after{content:""; border-left:16px solid var(--on-accent); border-top:10px solid transparent; border-bottom:10px solid transparent; margin-left:4px}
+.video:hover{background:var(--surface)}
+.video.pending{border-style:dashed; border-color:var(--rule-strong); background:var(--surface)}
+.video.pending .play{background:var(--rule-strong)}
+details.card summary::marker{color:var(--accent)}
+
+/* QCM */
+.q{padding-block:14px; border-top:1px solid var(--rule)}
+.q:first-child{border-top:none}
+.q .qt{font-weight:700; margin-bottom:8px}
+.opts{display:grid; gap:6px}
+.opt{display:flex; gap:10px; align-items:flex-start; border:2px solid var(--rule); border-radius:8px; padding:8px 12px; cursor:pointer}
+.opt input{margin-top:5px; accent-color:var(--accent)}
+.opt.right{border-color:var(--turtle); background:var(--turtle-soft)}
+.opt.wrong{border-color:var(--margin); background:var(--margin-soft)}
+.webtag{display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); border:1.5px solid var(--accent); border-radius:99px; padding:1px 9px; margin-bottom:6px}
+.q .why{font-size:.92rem; color:var(--muted); margin-top:6px}
+
+/* Tableau de la tortue */
+.board-wrap{display:flex; flex-direction:column; gap:10px}
+canvas.board{width:100%; max-width:520px; aspect-ratio:1; display:block; border-radius:var(--radius); border:2px solid var(--rule-strong); background:var(--surface); touch-action:none}
+canvas.board.draw{cursor:crosshair}
+.legend{display:flex; flex-wrap:wrap; gap:14px; font-size:.85rem; color:var(--muted)}
+.legend span::before{content:""; display:inline-block; width:18px; height:0; border-top:3px solid; vertical-align:middle; margin-right:6px}
+.legend .l-target::before{border-top-style:dashed; border-color:var(--rule-strong)}
+.legend .l-sketch::before{border-color:var(--margin)}
+.legend .l-ink::before{border-color:var(--ink)}
+
+.orders{margin:0; padding-left:1.4em; display:grid; gap:4px}
+.orders li::marker{font-family:var(--font-mono); color:var(--accent)}
+.pen-state{font-weight:700}
+.pen-state.up{color:var(--margin)}
+.pen-state.down{color:var(--turtle)}
+
+/* Dictée */
+.dict-ctrl{display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr) auto; gap:8px; align-items:end}
+@media (max-width:480px){ .dict-ctrl{grid-template-columns:1fr 1fr} .dict-ctrl .btn{grid-column:1/-1} }
+label.f{display:flex; flex-direction:column; gap:4px; font-size:.85rem; font-weight:700; color:var(--muted)}
+select, input[type=number], input[type=text]{font:inherit; font-size:1rem; color:var(--ink); background:var(--surface); border:2px solid var(--rule-strong); border-radius:8px; padding:7px 10px; width:100%}
+.prog-list{list-style:none; margin:0; padding:0; display:grid; gap:4px; counter-reset:c}
+.prog-list li{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--rule); border-radius:6px; counter-increment:c}
+.prog-list li::before{content:counter(c); font-family:var(--font-mono); color:var(--accent); width:1.6em}
+.prog-list li span{flex:1}
+.prog-list li button{font:inherit; border:none; background:none; color:var(--margin); cursor:pointer; font-weight:700; padding:2px 6px}
+.prog-list:empty::after{content:"Aucun ordre pour l'instant."; color:var(--muted); font-style:italic; padding:6px 0; display:block}
+
+.angle-help{display:grid; grid-template-columns:150px minmax(0,1fr); gap:14px; align-items:center}
+.angle-help svg{width:150px; height:auto}
+@media (max-width:480px){ .angle-help{grid-template-columns:1fr} }
+
+/* Flashcards */
+.flash-area{display:grid; place-items:center; gap:16px}
+.flash{width:min(100%,420px); aspect-ratio:3/2; perspective:1000px; cursor:pointer; border:none; background:none; padding:0; font:inherit; color:inherit}
+.flash-inner{position:relative; width:100%; height:100%; transition:transform .5s; transform-style:preserve-3d}
+.flash.flipped .flash-inner{transform:rotateY(180deg)}
+.face{position:absolute; inset:0; backface-visibility:hidden; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:20px; border:2px solid var(--rule-strong); background:var(--surface);
+  background-image:linear-gradient(90deg, transparent 38px, var(--margin) 38px, var(--margin) 40px, transparent 40px), linear-gradient(var(--rule) 1px, transparent 1px); background-size:100% 100%, 100% 28px}
+.face.back{transform:rotateY(180deg); background-color:var(--turtle-soft)}
+.face .word{font-family:var(--font-display); font-weight:800; font-size:clamp(1.8rem,6vw,2.6rem)}
+.face .lang{font-size:.75rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.face .ex{font-family:var(--font-mono); font-size:.9rem; color:var(--accent)}
+.deck-info{display:flex; gap:18px; flex-wrap:wrap; justify-content:center; font-size:.9rem; color:var(--muted)}
+.deck-info b{color:var(--ink); font-variant-numeric:tabular-nums}
+
+/* Cartes de commandes */
+.cmd-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px}
+.cmd{border:1px solid var(--rule-strong); border-radius:var(--radius); padding:14px; background:var(--surface); display:flex; flex-direction:column; gap:6px}
+.cmd code{font-size:1rem; color:var(--accent); font-weight:600}
+.cmd .en{font-size:.85rem; color:var(--muted)}
+.remote{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:6px}
+.remote button{font-family:var(--font-mono); font-size:.82rem; padding:8px 6px; border-radius:6px; border:2px solid var(--rule-strong); background:var(--surface); color:var(--ink); cursor:pointer}
+.remote button:hover{border-color:var(--accent)}
+pre.log{margin:0; font-family:var(--font-mono); font-size:.85rem; background:var(--paper); border:1px solid var(--rule-strong); border-radius:8px; padding:10px 12px; max-height:180px; overflow:auto; white-space:pre}
+.rules{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px}
+.rule{border-left:4px solid var(--accent); padding:4px 0 4px 12px}
+
+/* Code affiché */
+pre.code{margin:0; font-family:var(--font-mono); font-size:.9rem; line-height:1.6; background:var(--paper); border:1px solid var(--rule-strong); border-radius:8px; padding:12px 14px; overflow-x:auto}
+
+/* Éditeur */
+.editor{display:grid; grid-template-columns:auto minmax(0,1fr); border:2px solid var(--rule-strong); border-radius:8px; background:var(--surface); overflow:hidden}
+.editor .gut{font-family:var(--font-mono); font-size:14px; line-height:22px; padding:10px 6px; text-align:right; color:var(--muted); background:var(--paper); user-select:none; min-width:40px; overflow:hidden; white-space:pre}
+.editor .gut .cur{color:var(--on-accent); background:var(--accent); border-radius:3px; display:inline-block; padding:0 3px}
+.editor .gut .err{color:var(--surface); background:var(--margin); border-radius:3px; display:inline-block; padding:0 3px}
+.editor textarea{font-family:var(--font-mono); font-size:14px; line-height:22px; padding:10px 12px; border:none; resize:vertical; min-height:286px; width:100%; background:transparent; color:var(--ink); white-space:pre; overflow-x:auto; tab-size:4}
+.editor textarea:focus{outline:none}
+.editor:focus-within{border-color:var(--accent)}
+.speed{display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--muted)}
+.speed input{accent-color:var(--accent)}
+.counter{font-family:var(--font-mono); font-size:.9rem; padding:4px 10px; border-radius:6px; background:var(--warn-soft); color:var(--warn); font-weight:600}
+
+.lesson{max-width:62ch}
+.lesson p{margin:0}
+.lesson .ex{font-family:var(--font-mono); font-size:.9rem; background:var(--paper); border:1px solid var(--rule-strong); border-radius:8px; padding:8px 12px; white-space:pre; overflow-x:auto}
+.task{border-left:4px solid var(--turtle); background:var(--turtle-soft); border-radius:0 8px 8px 0; padding:10px 14px; display:flex; flex-direction:column; gap:4px}
+.task .eyebrow{color:var(--turtle)}
+.explore{margin:0; padding-left:1.2em; display:grid; gap:6px}
+.tstate{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; max-width:520px}
+.tstate div{border:1px solid var(--rule-strong); border-radius:8px; padding:6px 10px; background:var(--surface); display:flex; flex-direction:column; min-width:0}
+.tstate span{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700}
+.tstate b{font-family:var(--font-mono); font-size:.92rem; font-variant-numeric:tabular-nums}
+.turns{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+.turns div{border:1px solid var(--rule-strong); border-radius:8px; padding:8px; text-align:center; font-size:.85rem}
+.turns svg{width:56px; height:56px; display:block; margin:0 auto 4px}
+.hist-hero{position:relative; overflow:hidden; background:var(--hero); color:var(--hero-fg); border-radius:18px; padding:30px 26px 26px; display:grid; gap:16px; margin-bottom:28px; border:2px solid var(--hero)}
+.hist-hero::after{content:""; position:absolute; inset:0 0 0 45%; background-image:radial-gradient(ellipse 4px 7px at center, var(--hole) 96%, transparent 100%); background-size:20px 30px; -webkit-mask-image:linear-gradient(90deg, transparent, #000 60%); mask-image:linear-gradient(90deg, transparent, #000 60%); pointer-events:none}
+.hist-hero > *{position:relative; z-index:1}
+.hero-eyebrow{font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:700; color:var(--pop)}
+.hist-title{font-size:clamp(2.3rem,7.5vw,4.6rem); font-weight:800; line-height:.95; letter-spacing:-.025em}
+.hist-title .pop{display:inline-block; background:var(--pop); color:var(--pop-ink); padding:0 .14em .04em; border-radius:6px; transform:rotate(-2deg)}
+.hero-sub{max-width:58ch; font-size:1.05rem; opacity:.92}
+.res-nav{display:flex; flex-wrap:wrap; gap:8px}
+.res-nav button{font:inherit; font-weight:700; color:var(--hero-fg); background:transparent; border:2px solid var(--hero-fg); border-radius:99px; padding:6px 14px 6px 6px; display:flex; align-items:center; gap:8px; cursor:pointer}
+.res-nav button span{width:26px; height:26px; border-radius:50%; background:var(--pop); color:var(--pop-ink); display:grid; place-items:center; font-family:var(--font-mono); font-size:.85rem}
+.res-nav button:hover{background:var(--pop); color:var(--pop-ink); border-color:var(--pop)}
+.res-nav button:focus-visible{outline:3px solid var(--pop); outline-offset:2px}
+.res{display:flex; flex-direction:column; gap:14px; margin-bottom:34px; scroll-margin-top:16px}
+.res-head{display:flex; gap:14px; align-items:center}
+.res-head h3{font-size:1.6rem; font-weight:800}
+.res-num{flex:none; width:46px; height:46px; border-radius:50%; background:var(--pop); color:var(--pop-ink); display:grid; place-items:center; font-family:var(--font-display); font-weight:800; font-size:1.4rem; transform:rotate(-6deg)}
+.vid-grid{display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:18px; align-items:center}
+@media (max-width:760px){ .vid-grid{grid-template-columns:minmax(0,1fr)} }
+.vid{position:relative; display:grid; place-items:center; aspect-ratio:16/9; max-width:100%; border-radius:16px; overflow:hidden; text-decoration:none; color:var(--hero-fg); background:var(--hero); background-image:radial-gradient(ellipse 4px 7px at center, var(--hole) 96%, transparent 100%); background-size:20px 30px}
+.vid .play{width:84px; height:84px; border-radius:50%; background:var(--pop); display:grid; place-items:center; transition:transform .2s}
+.vid .play::after{content:""; border-left:26px solid var(--pop-ink); border-top:16px solid transparent; border-bottom:16px solid transparent; margin-left:6px}
+.vid:hover .play{transform:scale(1.08)}
+.vid .cap{position:absolute; left:16px; right:16px; bottom:14px; display:flex; justify-content:space-between; gap:10px; align-items:flex-end; font-weight:700}
+.vid .cap small{font-family:var(--font-mono); background:var(--pop); color:var(--pop-ink); border-radius:6px; padding:2px 8px; white-space:nowrap}
+.vid.pending .play{background:var(--hole)}
+.vid.pending .play::after{border-left-color:var(--hero-fg)}
+@media (max-width:520px){ .vid .play{width:56px; height:56px} .vid .play::after{border-left-width:18px; border-top-width:11px; border-bottom-width:11px} .vid .cap{font-size:.85rem; bottom:10px; left:12px; right:12px} }
+.watch{background:var(--surface); border:2px dashed var(--rule-strong); border-radius:14px; padding:16px 18px}
+.watch ul{margin:8px 0 0; padding-left:1.2em; display:grid; gap:6px}
+.era-legend{gap:12px; font-size:.85rem; font-weight:700}
+.era-legend span{display:flex; align-items:center; gap:6px}
+.era-legend span::before{content:""; width:12px; height:12px; border-radius:50%; background:var(--era)}
+.tl-btn{padding:6px 14px; font-size:1.1rem}
+.tl-scroll{display:grid; grid-auto-flow:column; grid-auto-columns:minmax(220px,250px); gap:16px; overflow-x:auto; scroll-snap-type:x mandatory; padding:4px 2px 14px; scrollbar-color:var(--rule-strong) transparent}
+.tl-scroll:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+.tl-item{position:relative; padding-top:30px; scroll-snap-align:start}
+.tl-item::before{content:""; position:absolute; top:11px; left:0; right:-16px; height:3px; background:var(--rule-strong)}
+.tl-item:last-child::before{right:50%}
+.tl-item::after{content:""; position:absolute; top:4px; left:16px; width:17px; height:17px; border-radius:50%; background:var(--era); border:3px solid var(--paper)}
+.tl-body{height:100%; background:var(--surface); border:2px solid var(--rule-strong); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:6px; transition:transform .15s}
+.tl-body:hover{transform:translateY(-3px)}
+.tl-item.turtle .tl-body{background:var(--turtle-soft); border-color:var(--turtle)}
+.tl-yr{font-family:var(--font-display); font-weight:800; font-size:2.1rem; line-height:1; color:var(--era)}
+.tl-body b{font-size:1.02rem}
+.tl-body p{font-size:.92rem; color:var(--muted)}
+.tl-item.turtle .tl-body p{color:var(--ink)}
+.mag{background:var(--surface); border:3px solid var(--hero); border-radius:18px; overflow:hidden}
+.mag-mast{background:var(--pop); color:var(--pop-ink); display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px 16px; padding:10px 22px}
+.mag-logo{font-family:var(--font-display); font-weight:800; font-size:2.1rem; letter-spacing:-.04em; line-height:1}
+.mag-issue{font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em}
+.mag-body{padding:24px; display:grid; gap:20px}
+.mag-kicker{display:inline-block; background:var(--margin); color:var(--surface); font-weight:800; font-size:.75rem; letter-spacing:.14em; text-transform:uppercase; padding:4px 10px; transform:rotate(-2deg)}
+.mag-h{font-size:clamp(1.9rem,5vw,3rem); font-weight:800; line-height:1; letter-spacing:-.02em; max-width:18ch}
+.mag-stand{font-size:1.1rem; font-weight:700; max-width:60ch}
+.mag-cols{columns:2 19rem; column-gap:32px}
+.mag-cols p{margin:0 0 12px}
+.mag-cols p:first-child::first-letter{float:left; font-family:var(--font-display); font-weight:800; font-size:3.6rem; line-height:.8; margin:6px 8px 0 0; color:var(--accent)}
+.mag-pull{font-family:var(--font-display); font-weight:800; font-size:1.45rem; line-height:1.1; color:var(--accent); border-block:3px solid var(--accent); padding-block:10px; break-inside:avoid}
+.mag-side{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px}
+.mag-box{background:var(--hero); color:var(--hero-fg); border-radius:14px; padding:16px 18px; transform:rotate(-.7deg)}
+.mag-box.alt{background:var(--turtle-soft); color:var(--ink); transform:rotate(.7deg)}
+.mag-box b.t{display:block; font-family:var(--font-display); font-weight:800; font-size:1.25rem; color:var(--pop); margin-bottom:6px}
+.mag-box.alt b.t{color:var(--turtle)}
+.big-num{float:left; font-family:var(--font-display); font-weight:800; font-size:3.4rem; line-height:.9; margin-right:10px; color:var(--turtle)}
+.mag-foot{font-size:.8rem; color:var(--muted); font-style:italic}
+.test-cta{font-size:1.05rem; padding:12px 20px}
+@media (prefers-reduced-motion: reduce){ .tl-body, .vid .play{transition:none} }
+.quiz-lock{border-style:dashed; background:transparent}
+.who{font-weight:700; font-size:.95rem}
+.who:empty{display:none}
+.time-btn{font-size:.85rem; padding:7px 12px; border-color:var(--margin); color:var(--margin)}
+.name-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; max-width:620px}
+.name-form .f{color:var(--hero-fg); font-size:.9rem}
+.name-form input{font-size:1.1rem; padding:10px 12px}
+.goals{margin:0; padding:0; list-style:none; display:grid; gap:8px}
+.goals li{display:grid; grid-template-columns:22px minmax(0,1fr); gap:10px; align-items:start}
+.goals li::before{content:""; width:18px; height:18px; margin-top:4px; border-radius:50%; border:3px solid var(--turtle); background:var(--turtle-soft)}
+.call{display:flex; flex-direction:column; align-items:center; text-align:center; gap:16px; padding-block:24px 10px}
+.call-art{width:min(300px,80%); height:auto}
+.call .hero-sub{color:var(--ink)}
+.back-btn{margin-top:8px}
+.teacher-zone{display:flex; justify-content:center; margin-top:56px}
+.teacher-btn{position:relative; overflow:hidden; font:inherit; display:flex; align-items:center; gap:12px; text-align:left; background:var(--margin-soft); color:var(--ink); border:2px dashed var(--margin); border-radius:12px; padding:12px 18px; cursor:pointer; user-select:none; -webkit-user-select:none; touch-action:none}
+.teacher-btn svg{width:30px; height:36px; flex:none}
+.teacher-btn b{display:block; color:var(--margin)}
+.teacher-btn small{font-size:.8rem; color:var(--muted)}
+.teacher-btn .hold{position:absolute; left:0; bottom:0; height:5px; width:0; background:var(--margin)}
+.teacher-btn.holding .hold{width:100%; transition:width 2s linear}
+.teacher-btn:focus-visible{outline:3px solid var(--margin); outline-offset:2px}
+.grade{display:flex; align-items:baseline; gap:12px; font-family:var(--font-display); font-weight:800}
+.grade .pop{font-size:clamp(3.4rem,11vw,6rem); line-height:1; background:var(--pop); color:var(--pop-ink); padding:0 .16em; border-radius:10px; transform:rotate(-2deg); font-variant-numeric:tabular-nums}
+.grade .out{font-size:2rem}
+.res-rows{display:grid; gap:12px}
+.res-row{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; align-items:center}
+.res-row .meter{grid-column:1 / -1; height:10px; border-radius:99px; background:var(--rule); overflow:hidden}
+.res-row .meter i{display:block; height:100%; background:var(--turtle); border-radius:99px}
+.res-row .pts{font-family:var(--font-mono); font-weight:600; font-variant-numeric:tabular-nums}
+.topbar{position:sticky; top:env(safe-area-inset-top, 0px); z-index:6; background:var(--surface); border-bottom:1px solid var(--rule-strong)}
+.topbar-in{max-width:1120px; margin:0 auto; padding-inline:16px; padding-block:8px; display:flex; align-items:center; gap:12px}
+.topbar-label{font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); white-space:nowrap}
+.topbar-track{flex:1; height:12px; border-radius:99px; background:var(--rule); overflow:hidden}
+.topbar-track i{display:block; height:100%; width:0; border-radius:99px; background:var(--turtle); transition:width .5s}
+.topbar b{font-family:var(--font-mono); font-variant-numeric:tabular-nums; min-width:4ch; text-align:right}
+@media (max-width:480px){ .topbar-label{display:none} }
+.diploma{--medal:var(--turtle); background:var(--surface); border:6px double var(--medal); border-radius:18px; padding:10px; margin-bottom:24px}
+.diploma[data-level="or"]{--medal:var(--gold)} .diploma[data-level="argent"]{--medal:var(--silver)} .diploma[data-level="bronze"]{--medal:var(--bronze)}
+.dip-inner{border:2px dashed var(--medal); border-radius:12px; padding:22px 20px 26px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
+  background-image:radial-gradient(circle at 0 0, var(--medal) 0 22px, transparent 23px), radial-gradient(circle at 100% 0, var(--medal) 0 22px, transparent 23px), radial-gradient(circle at 0 100%, var(--medal) 0 22px, transparent 23px), radial-gradient(circle at 100% 100%, var(--medal) 0 22px, transparent 23px)}
+.dip-top{align-self:stretch; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; padding-inline:22px; font-size:.75rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.dip-seal{width:110px; height:110px; margin-block:6px}
+.dip-kicker{font-size:.85rem; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--muted)}
+.dip-title{font-size:clamp(2rem,6vw,3.4rem); font-weight:800; line-height:1; color:var(--ink)}
+.dip-for{color:var(--muted); font-style:italic}
+.dip-name{font-family:var(--font-display); font-weight:800; font-size:clamp(1.6rem,4.5vw,2.4rem); border-bottom:3px solid var(--medal); padding:0 16px 4px}
+.diploma .grade{margin-block:10px 4px}
+.diploma .grade .out{color:var(--ink)}
+.dip-comment{max-width:56ch; font-size:1.05rem}
+.dip-sign{align-self:stretch; display:flex; justify-content:space-around; gap:20px; flex-wrap:wrap; margin-top:22px; font-size:.85rem; color:var(--muted)}
+.dip-sign span{min-width:160px; border-top:1px solid var(--rule-strong); padding-top:6px}
+.ess-list{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:8px 20px}
+.ess-list div{display:grid; grid-template-columns:22px minmax(0,1fr); gap:8px; align-items:start}
+.ess-list div::before{content:""; width:12px; height:12px; margin-top:7px; border-radius:3px; background:var(--turtle); transform:rotate(45deg)}
+.pearl{border:3px solid var(--margin); background:var(--margin-soft); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; align-items:flex-start}
+.pearl > b{font-family:var(--font-display); font-size:1.2rem; color:var(--margin)}
+.self-list{display:grid; gap:14px}
+.self-item{background:var(--surface); border:2px solid var(--rule-strong); border-radius:14px; padding:16px 18px; display:grid; gap:10px}
+.self-item.need{border-color:var(--warn)}
+.self-item.good{border-color:var(--turtle)}
+.self-top{display:flex; justify-content:space-between; gap:6px 16px; flex-wrap:wrap; align-items:baseline}
+.self-top b{font-size:1.05rem}
+.self-res{font-family:var(--font-mono); font-size:.88rem; color:var(--muted)}
+.self-item .meter{height:10px; border-radius:99px; background:var(--rule); overflow:hidden}
+.self-item .meter i{display:block; height:100%; background:var(--turtle); border-radius:99px}
+.self-choices{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.self-choices > span{font-size:.85rem; font-weight:700; color:var(--muted)}
+.self-choices .chip[data-v="ok"][aria-pressed="true"]{border-color:var(--turtle); background:var(--turtle-soft)}
+.self-choices .chip[data-v="almost"][aria-pressed="true"]{border-color:var(--warn); background:var(--warn-soft)}
+.self-choices .chip[data-v="todo"][aria-pressed="true"]{border-color:var(--margin); background:var(--margin-soft)}
+.self-review{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; justify-content:space-between; border-top:1px dashed var(--rule-strong); padding-top:10px}
+.self-review p{font-size:.92rem; color:var(--muted); max-width:60ch}
+.self-item.need .self-review .btn{border-color:var(--warn); color:var(--warn)}
+.note-area{font:inherit; color:var(--ink); background:var(--surface); border:2px solid var(--rule-strong); border-radius:12px; padding:12px 14px; width:100%; resize:vertical}
+.note-area:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+.memo{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:0; border:2px solid var(--ink); border-radius:var(--radius); overflow:hidden}
+.memo div{padding:8px 12px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; gap:10px}
+.memo code{color:var(--accent); font-weight:600}
+
+footer.foot{margin-top:40px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:.85rem; color:var(--muted)}
+footer.foot button{font:inherit; background:none; border:none; color:var(--muted); text-decoration:underline; cursor:pointer}
+.toast{position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:8px; font-weight:700; z-index:10}
+section.step{display:none}
+section.step.on{display:block}
+@media (prefers-reduced-motion: reduce){ .flash-inner, .bar i{transition:none} }
+</style>
+
+<div class="topbar" id="topbar" hidden>
+  <div class="topbar-in"><span class="topbar-label">Ma progression</span><div class="topbar-track" role="progressbar" aria-label="Progression dans l'activité" aria-valuemin="0" aria-valuemax="100" id="topTrack"><i id="topFill"></i></div><b id="topPct">0 %</b></div>
+</div>
+<div class="wrap">
+  <header class="top">
+    <div class="stack" style="gap:6px">
+      <span class="eyebrow">SNT · Seconde · Programmation</span>
+      <h1 id="title">Premiers pas avec la tortue</h1>
+      <p class="sub">Avant d'écrire ton premier programme Python, tu vas découvrir d'où vient la tortue, jouer son rôle, apprendre son vocabulaire anglais puis la commander avec du vrai code.</p>
+    </div>
+    <div class="progress stack" id="progBox" style="gap:8px">
+      <span class="who" id="whoAmI"></span>
+      <div><span class="eyebrow" id="progText">Étape 1 sur 7</span>
+      </div>
+      <button class="btn quiet time-btn" data-time>Temps terminé, voir mon bilan</button>
+    </div>
+  </header>
+
+  <div id="viewWelcome" hidden>
+    <div class="hist-hero">
+      <span class="hero-eyebrow">SNT · Bienvenue</span>
+      <h2 class="hist-title">Prêt·e à piloter<br>la <span class="pop">tortue</span> ?</h2>
+      <p class="hero-sub">Avant de commencer, écris ton nom et ton prénom : ils apparaîtront sur tes résultats.</p>
+      <div class="name-form">
+        <label class="f" for="stNom">Nom de famille<input type="text" id="stNom" autocomplete="family-name" maxlength="40"></label>
+        <label class="f" for="stPrenom">Prénom<input type="text" id="stPrenom" autocomplete="given-name" maxlength="40"></label>
+      </div>
+    </div>
+    <div class="card stack" style="max-width:760px">
+      <h3>Mes objectifs pour cette séance</h3>
+      <p class="muted">À la fin de l'activité, je saurai :</p>
+      <ul class="goals">
+        <li><span>raconter les grandes étapes de l'histoire de la programmation et de la tortue Logo ;</span></li>
+        <li><span>donner des ordres précis à une tortue, sans ordinateur ;</span></li>
+        <li><span>comprendre le vocabulaire anglais des commandes de la tortue ;</span></li>
+        <li><span>écrire mes premières instructions Python : <code>forward</code>, <code>left</code>, <code>right</code>, <code>penup</code>, <code>goto</code>, <code>color</code>… ;</span></li>
+        <li><span>prévoir le dessin d'un programme et corriger mes erreurs ;</span></li>
+        <li><span>créer un dessin complet en Python.</span></li>
+      </ul>
+      <div class="feedback info"><b>Comment je fais le point :</b> il n'y a pas de note ! À la fin, je regarde mes résultats et je fais moi-même le point sur chaque objectif. Si quelque chose n'est pas encore clair, je peux revenir sur la partie concernée. Les essais ne sont jamais pénalisés : on apprend en se trompant !</div>
+      <div class="feedback" id="welcomeFb" aria-live="polite"></div>
+      <div><button class="btn go test-cta" id="startBtn">Commencer l'activité</button></div>
+    </div>
+  </div>
+
+  <div id="viewResults" hidden>
+    <div class="hist-hero">
+      <span class="hero-eyebrow" id="resDate"></span>
+      <h2 class="hist-title">Mon bilan,<br><span class="pop" id="resName"></span></h2>
+      <p class="hero-sub" id="resComment"></p>
+    </div>
+
+    <div class="res">
+      <div class="res-head"><span class="res-num">1</span><div><h3>Je fais le point</h3><p class="muted">Pour chaque objectif, regarde tes résultats, puis choisis honnêtement où tu en es. Tu peux revoir une partie quand tu veux : ton travail est gardé.</p></div></div>
+      <div class="self-list" id="selfList"></div>
+    </div>
+
+    <div class="res">
+      <div class="res-head"><span class="res-num">2</span><div><h3>Ma question pour la prochaine fois</h3><p class="muted">Ce que je n'ai pas encore compris, ou ce que j'aimerais savoir faire.</p></div></div>
+      <textarea id="myQuestion" class="note-area" rows="3" aria-label="Ma question pour la prochaine fois" placeholder="Par exemple : je ne sais pas encore quand utiliser left ou right…"></textarea>
+    </div>
+
+    <div class="res">
+      <div class="res-head"><span class="res-num">3</span><div><h3>L'essentiel à retenir</h3></div></div>
+      <div class="card stack essential">
+        <div class="ess-list" id="essList"></div>
+        <div class="pearl">
+          <b>À faire maintenant</b>
+          <p>Télécharge ce fichier et mets-le dans un dossier <b>SNT</b> que tu vas créer sur <b>Pearltrees</b>. Pense bien à rendre ce dossier « privé » !!</p>
+          <button class="btn go" id="dlBtn">Télécharger mon bilan et l'essentiel</button>
+          <div class="feedback" id="dlFb" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewSteps">
+  <div class="tabs-scroll"><nav class="tabs" id="tabs" aria-label="Étapes"></nav></div>
+
+  <main id="steps">
+
+  <!-- 1. HISTOIRE -->
+  <section class="step" data-step="0">
+    <div class="hist-hero">
+      <span class="hero-eyebrow">Étape 1 · environ 25 min · culture numérique</span>
+      <h2 class="hist-title">De la carte perforée<br>à la <span class="pop">tortue</span></h2>
+      <p class="hero-sub">Deux siècles pour apprendre à parler aux machines. Découvre les trois ressources, puis teste-toi : la plupart des questions demandent de réfléchir, pas seulement de retrouver un mot.</p>
+      <div class="res-nav">
+        <button data-go="resVideo"><span>1</span>Regarde</button>
+        <button data-go="resFrise"><span>2</span>Explore</button>
+        <button data-go="resMag"><span>3</span>Lis</button>
+        <button data-go="resTest"><span>4</span>Teste-toi</button>
+      </div>
+    </div>
+
+    <div class="res" id="resVideo">
+      <div class="res-head"><span class="res-num">1</span><div><h3>Regarde</h3><p class="muted">L'évolution des langages de programmation, en 3 minutes.</p></div></div>
+      <div class="vid-grid">
+        <div id="videoSlot"></div>
+        <div class="watch">
+          <span class="eyebrow">Pendant la vidéo, repère</span>
+          <ul>
+            <li>la machine du XIX<sup>e</sup> siècle qui fonctionnait avec des cartes perforées ;</li>
+            <li>la première personne à avoir écrit un programme ;</li>
+            <li>ce qu'a inventé Grace Hopper, et à quoi cela sert ;</li>
+            <li>l'année de naissance de Python.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="res" id="resFrise">
+      <div class="res-head"><span class="res-num">2</span><div><h3>Explore</h3><p class="muted">Fais défiler la frise. En vert, l'histoire de la tortue.</p></div></div>
+      <div class="row" style="justify-content:space-between">
+        <div class="row era-legend">
+          <span style="--era:var(--warn)">Avant l'ordinateur</span>
+          <span style="--era:var(--accent)">Les pionniers</span>
+          <span style="--era:var(--turtle)">La tortue</span>
+          <span style="--era:var(--margin)">Aujourd'hui</span>
+        </div>
+        <div class="row"><button class="btn quiet tl-btn" id="tlPrev" aria-label="Dates précédentes">←</button><button class="btn quiet tl-btn" id="tlNext" aria-label="Dates suivantes">→</button></div>
+      </div>
+      <div class="tl-scroll" id="tlScroll" tabindex="0" aria-label="Frise chronologique"></div>
+    </div>
+
+    <div class="res" id="resMag">
+      <div class="res-head"><span class="res-num">3</span><div><h3>Lis</h3><p class="muted">L'article du mois de CTRL+Z, le magazine qui décode le numérique.</p></div></div>
+      <article class="mag">
+        <div class="mag-mast"><span class="mag-logo">CTRL+Z</span><span class="mag-issue">Le mag qui décode le numérique · N° 42</span></div>
+        <div class="mag-body">
+          <div class="stack" style="gap:10px">
+            <span><span class="mag-kicker">Histoire geek</span></span>
+            <h3 class="mag-h">Comment on a appris à parler aux machines</h3>
+            <p class="mag-stand">Ton téléphone, tes jeux, tes applis : tout fonctionne grâce à des programmes. Mais qui a eu l'idée de donner des ordres à une machine ? Retour sur 200 ans d'inventions… et sur une tortue qui a changé l'école.</p>
+          </div>
+          <div class="mag-cols">
+            <p><b>Au début, il y avait… du tissu.</b> En 1801, le Lyonnais Joseph-Marie Jacquard invente un métier à tisser piloté par des cartes perforées. Un trou : le fil passe. Pas de trou : il ne passe pas. Pour changer de motif, inutile de changer de machine, il suffit de changer les cartes.</p>
+            <p class="mag-pull">Pour changer de motif, il suffit de changer les cartes. Le programme est né.</p>
+            <p><b>Une programmeuse avant l'ordinateur.</b> Quarante ans plus tard, la mathématicienne anglaise Ada Lovelace écrit un programme pour la machine analytique de Charles Babbage. Problème : la machine ne sera jamais terminée ! Ada a donc écrit le premier programme de l'histoire… pour un ordinateur qui n'existait pas.</p>
+            <p><b>Parler « machine », c'est dur.</b> Les premiers ordinateurs, dans les années 1940, ne comprennent que des suites de 0 et de 1. Programmer prend des heures, et la moindre erreur est un cauchemar. En 1951, Grace Hopper a une idée de génie : un programme qui traduit pour nous. Grâce à ces traducteurs, on peut enfin programmer avec des mots.</p>
+            <p><b>La tortue entre en scène.</b> En 1967, aux États-Unis, Seymour Papert et ses collègues créent Logo, un langage pensé pour les enfants. Sa future star : une tortue robot munie d'un stylo, qui dessine en avançant sur une grande feuille posée au sol. L'idée de Papert : pour comprendre un programme, on peut se mettre à la place de la tortue et marcher comme elle. Dans les années 1980, des milliers d'élèves français découvrent la programmation avec elle.</p>
+            <p><b>Et maintenant, à toi.</b> La tortue n'a jamais disparu : elle vit dans Scratch et dans Python, l'un des langages les plus utilisés au monde, en science, en intelligence artificielle ou dans les jeux vidéo. Ses commandes sont en anglais : <i>forward</i>, <i>left</i>, <i>right</i>… Prêt·e à la piloter ?</p>
+          </div>
+          <div class="mag-side">
+            <div class="mag-box"><b class="t">Le savais-tu ?</b>En 1947, l'équipe de Grace Hopper cherche pourquoi l'ordinateur Harvard Mark II tombe en panne. Le coupable : un papillon de nuit coincé dans la machine ! Il est collé dans le cahier de bord avec la mention « First actual case of bug being found ». Depuis, une erreur de programme s'appelle un <i>bug</i>, « insecte » en anglais.</div>
+            <div class="mag-box alt"><b class="t">Le chiffre</b><span class="big-num">2</span>C'est le nombre de « mots » qu'un processeur comprend vraiment : 0 et 1. Tout le reste, c'est de la traduction !</div>
+          </div>
+          <p class="mag-foot">CTRL+Z est un magazine imaginé pour cette séance.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="res" id="resTest">
+      <div class="res-head"><span class="res-num">4</span><div><h3>Teste-toi</h3><p class="muted">11 questions. Les questions marquées « Recherche web » demandent une petite recherche en ligne. Objectif : 8 bonnes réponses.</p></div></div>
+      <div class="card">
+        <button class="btn test-cta" id="startTest">J'ai découvert les ressources : je commence le test</button>
+        <div id="quizHistory" hidden></div>
+      </div>
+    </div>
+    <div class="next-bar"><span class="muted" id="nx0"></span><button class="btn go" data-next="0" disabled>Étape suivante</button></div>
+  </section>
+
+  <!-- 2. SOIS LA TORTUE -->
+  <section class="step" data-step="1">
+    <div class="step-head">
+      <span class="eyebrow">Étape 2 · environ 15 min · sans code</span>
+      <h2>Sois la tortue</h2>
+      <p class="muted">La tortue part toujours du centre, tournée vers la droite (vers l'est). Une case du quadrillage = 1 pas de tortue. Réussis les 3 défis A et les 3 défis B.</p>
+    </div>
+
+    <div class="card stack" style="margin-bottom:20px">
+      <div class="row" style="justify-content:space-between">
+        <h3>A. Suis les ordres : dessine à la souris</h3>
+        <div class="row" id="followChips"></div>
+      </div>
+      <div class="work">
+        <div class="stack">
+          <p>Clique sur les croisements du quadrillage pour tracer le chemin de la tortue. Chaque clic trace un trait depuis le dernier point. Pour « lever le stylo », utilise le bouton : tes clics déplaceront alors le crayon sans tracer.</p>
+          <ol class="orders" id="followOrders"></ol>
+          <div class="row">
+            <button class="btn quiet" id="fPen">Crayon : <span class="pen-state down">baissé</span></button>
+            <button class="btn quiet" id="fUndo">Annuler</button>
+            <button class="btn quiet" id="fClear">Effacer</button>
+            <button class="btn" id="fCheck">Vérifier</button>
+          </div>
+          <div class="feedback" id="fFb" aria-live="polite"></div>
+        </div>
+        <div class="board-wrap">
+          <canvas class="board draw" id="fBoard" aria-label="Quadrillage où dessiner le chemin de la tortue"></canvas>
+          <div class="legend"><span class="l-sketch">ton tracé</span><span class="l-ink">le vrai trajet de la tortue</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card stack">
+      <div class="row" style="justify-content:space-between">
+        <h3>B. Dicte les ordres à la tortue</h3>
+        <div class="row" id="dictChips"></div>
+      </div>
+      <div class="work">
+        <div class="stack">
+          <p id="dictGoal"></p>
+          <div class="dict-ctrl">
+            <label class="f" for="dCmd">Ordre
+              <select id="dCmd">
+                <option value="fd">Avance</option>
+                <option value="bk">Recule</option>
+                <option value="lt">Tourne à gauche</option>
+                <option value="rt">Tourne à droite</option>
+                <option value="pu">Lève le stylo</option>
+                <option value="pd">Baisse le stylo</option>
+              </select>
+            </label>
+            <label class="f" for="dVal"><span id="dUnit">Cases</span>
+              <input type="number" id="dVal" value="1" min="0" step="1">
+            </label>
+            <button class="btn ghost" id="dAdd">Ajouter</button>
+          </div>
+          <ol class="prog-list" id="dList"></ol>
+          <div class="row">
+            <button class="btn" id="dRun">Faire avancer la tortue</button>
+            <button class="btn quiet" id="dClear">Tout effacer</button>
+          </div>
+          <div class="feedback" id="dFb" aria-live="polite"></div>
+          <div class="card angle-help" id="angleHelp" hidden style="background:var(--warn-soft); border-color:var(--warn)">
+            <svg viewBox="0 0 160 140" aria-hidden="true">
+              <polygon points="20,120 120,120 70,33.4" fill="none" stroke="var(--ink)" stroke-width="3"/>
+              <line x1="120" y1="120" x2="152" y2="120" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4"/>
+              <path d="M140 120 A20 20 0 0 0 110 102.7" fill="none" stroke="var(--margin)" stroke-width="3"/>
+              <path d="M104 120 A16 16 0 0 1 112 106" fill="none" stroke="var(--turtle)" stroke-width="3"/>
+              <text x="132" y="98" font-size="14" font-weight="700" fill="var(--margin)">120°</text>
+              <text x="80" y="112" font-size="13" font-weight="700" fill="var(--turtle)">60°</text>
+            </svg>
+            <p><b>Le piège du triangle.</b> Les angles <i>à l'intérieur</i> du triangle mesurent 60°, mais la tortue ne tourne pas de l'angle intérieur ! Elle arrive au coin en regardant tout droit (pointillés) et doit pivoter de <b>180° − 60° = 120°</b>. Retiens : pour un polygone régulier, la tortue tourne de <b>360° ÷ nombre de côtés</b>.</p>
+          </div>
+        </div>
+        <div class="board-wrap">
+          <canvas class="board" id="dBoard" aria-label="Tableau où la tortue exécute tes ordres"></canvas>
+          <div class="legend"><span class="l-target">figure à obtenir</span><span class="l-ink">trajet de la tortue</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="next-bar"><span class="muted" id="nx1"></span><button class="btn go" data-next="1" disabled>Étape suivante</button></div>
+  </section>
+
+  <!-- 3. VOCABULAIRE -->
+  <section class="step" data-step="2">
+    <div class="step-head">
+      <span class="eyebrow">Étape 3 · environ 15 min · English</span>
+      <h2>Speak turtle: le vocabulaire anglais</h2>
+      <p class="muted">Toutes les commandes de la tortue Python sont des mots anglais. Si tu les comprends, tu comprends le code. Révise avec les cartes, puis passe le test quand tu te sens prêt·e (8 bonnes réponses sur 11).</p>
+    </div>
+    <div class="card" id="vocabCards">
+      <div class="row" style="justify-content:space-between; margin-bottom:14px">
+        <div class="row">
+          <span class="muted" style="font-weight:700; font-size:.9rem">Sens des cartes :</span>
+          <button class="chip" id="dirEn" aria-pressed="true">anglais → français</button>
+          <button class="chip" id="dirFr" aria-pressed="false">français → anglais</button>
+        </div>
+        <button class="btn quiet" id="shuffleDeck">Mélanger</button>
+      </div>
+      <div class="flash-area">
+        <button class="flash" id="flash" aria-label="Carte : clique pour la retourner">
+          <div class="flash-inner">
+            <div class="face front"><span class="lang" id="fLangA">English</span><span class="word" id="fWordA"></span><span class="muted" style="font-size:.85rem">Clique pour retourner</span></div>
+            <div class="face back"><span class="lang" id="fLangB">Français</span><span class="word" id="fWordB"></span><span class="ex" id="fEx"></span></div>
+          </div>
+        </button>
+        <div class="row" style="justify-content:center">
+          <button class="btn quiet" id="speak">Écouter en anglais</button>
+          <button class="btn ghost" id="again" style="border-color:var(--margin); color:var(--margin)">À revoir</button>
+          <button class="btn go" id="know">Je sais</button>
+        </div>
+        <div class="deck-info">
+          <span>Cartes sues : <b id="knownN">0</b> / <b id="totalN">0</b></span>
+          <span>Carte <b id="posN">1</b></span>
+        </div>
+        <button class="btn" id="ready">Je suis prêt·e pour le test</button>
+      </div>
+    </div>
+    <div class="card" id="vocabTest" hidden>
+      <div class="row" style="justify-content:space-between; margin-bottom:8px">
+        <h3>Test de vocabulaire</h3>
+        <button class="btn quiet" id="backCards">Revoir les cartes</button>
+      </div>
+      <div id="quizVocab"></div>
+    </div>
+    <div class="next-bar"><span class="muted" id="nx2"></span><button class="btn go" data-next="2" disabled>Étape suivante</button></div>
+  </section>
+
+  <!-- 4. DU GESTE AU CODE -->
+  <section class="step" data-step="3">
+    <div class="step-head">
+      <span class="eyebrow">Étape 4 · environ 25 min</span>
+      <h2>Des ordres au code Python, notion par notion</h2>
+      <p class="muted">Les ordres que tu as donnés à l'étape 2 s'écrivent maintenant en Python. Huit notions, une à la fois : lis la courte leçon, fais le petit exercice, puis regarde le tableau de bord de la tortue pour comprendre ce qui s'est passé.</p>
+    </div>
+    <div class="card stack">
+      <div class="row" style="justify-content:space-between">
+        <span class="eyebrow" id="lsCount"></span>
+        <div class="row" id="lsChips"></div>
+      </div>
+      <div class="work">
+        <div class="stack">
+          <h3 id="lsTitle"></h3>
+          <div class="lesson stack" id="lsLesson"></div>
+          <div class="task"><span class="eyebrow">À toi</span><p id="lsTask"></p></div>
+          <div class="editor"><div class="gut" id="lsGut" aria-hidden="true"></div><textarea id="lsCode" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programme de la notion" style="min-height:176px"></textarea></div>
+          <div class="row">
+            <button class="btn go" id="lsRun">Exécuter</button>
+            <button class="btn quiet" id="lsHint">Indice</button>
+            <button class="btn quiet" id="lsReset">Code de départ</button>
+          </div>
+          <div class="feedback" id="lsFb" aria-live="polite"></div>
+          <div class="row" style="justify-content:space-between">
+            <button class="btn quiet" id="lsPrev">Notion précédente</button>
+            <button class="btn" id="lsNext">Notion suivante</button>
+          </div>
+        </div>
+        <div class="board-wrap">
+          <canvas class="board" id="lsBoard" aria-label="Tableau de la tortue"></canvas>
+          <div class="legend"><span class="l-target">figure à obtenir</span><span class="l-ink">dessin de ta tortue</span></div>
+          <div class="tstate" aria-live="polite">
+            <div><span>Position (x ; y)</span><b id="stPos">(0 ; 0)</b></div>
+            <div><span>Direction</span><b id="stDir">vers la droite</b></div>
+            <div><span>Stylo</span><b id="stPen">baissé</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card quiz-lock" id="lsLock" style="margin-top:20px">
+      <h3 style="margin-bottom:4px">Questionnaire verrouillé</h3>
+      <p class="muted">Il apparaîtra quand tu auras réussi les 8 notions. Notions réussies : <b id="lsDoneN">0</b> / 8.</p>
+    </div>
+    <div class="card" id="lsQuizCard" hidden style="margin-top:20px">
+      <h3 style="margin-bottom:4px">Vérifie que tu as compris</h3>
+      <p class="muted" style="margin-bottom:8px">Tu peux tester tes idées dans l'éditeur des notions. Objectif : 5 bonnes réponses sur 6.</p>
+      <div id="quizCode"></div>
+    </div>
+    <div class="next-bar"><span class="muted" id="nx3"></span><button class="btn go" data-next="3" disabled>Étape suivante</button></div>
+  </section>
+
+  <!-- 5. PRÉDIRE -->
+  <section class="step" data-step="4">
+    <div class="step-head">
+      <span class="eyebrow">Étape 5 · environ 10 min</span>
+      <h2>Lis le code, prédis le dessin</h2>
+      <p class="muted">Avant d'exécuter un programme, un bon programmeur imagine ce qu'il va produire. Lis chaque code, dessine à la souris ce que tu prévois, puis vérifie. Dans cet exercice uniquement, une case du quadrillage mesure 50 pixels.</p>
+    </div>
+    <div class="card stack">
+      <div class="row" id="predChips"></div>
+      <div class="work">
+        <div class="stack">
+          <pre class="code" id="predCode"></pre>
+          <div class="row">
+            <button class="btn quiet" id="pPen">Crayon : <span class="pen-state down">baissé</span></button>
+            <button class="btn quiet" id="pUndo">Annuler</button>
+            <button class="btn quiet" id="pClear">Effacer</button>
+            <button class="btn" id="pCheck">Exécuter et comparer</button>
+          </div>
+          <div class="feedback" id="pFb" aria-live="polite"></div>
+        </div>
+        <div class="board-wrap">
+          <canvas class="board draw" id="pBoard" aria-label="Quadrillage où dessiner ta prédiction"></canvas>
+          <div class="legend"><span class="l-sketch">ta prédiction</span><span class="l-ink">ce que fait vraiment le code</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="next-bar"><span class="muted" id="nx4"></span><button class="btn go" data-next="4" disabled>Étape suivante</button></div>
+  </section>
+
+  <!-- 6. CODER -->
+  <section class="step" data-step="5">
+    <div class="step-head">
+      <span class="eyebrow">Étape 6 · environ 20 min</span>
+      <h2>À toi de coder</h2>
+      <p class="muted">Écris du vrai Python. La tortue exécute ton programme ligne par ligne (la ligne en cours est surlignée) et compare son dessin à la figure en pointillés. Dans ces exercices, une case du quadrillage mesure 50 pixels. Réussis au moins 5 exercices sur 7.</p>
+    </div>
+    <div class="card stack">
+      <div class="row" id="exChips"></div>
+      <div class="work">
+        <div class="stack">
+          <div><span class="eyebrow" id="exKind"></span><h3 id="exTitle" style="margin-top:2px"></h3></div>
+          <p id="exText"></p>
+          <div class="editor"><div class="gut" id="exGut" aria-hidden="true"></div><textarea id="exCode" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Ton programme Python"></textarea></div>
+          <div class="row">
+            <button class="btn go" id="exRun">Exécuter</button>
+            <button class="btn quiet" id="exHint">Indice</button>
+            <button class="btn quiet" id="exReset">Code de départ</button>
+            <label class="speed" for="exSpeed">Vitesse <input type="range" id="exSpeed" min="1" max="10" value="5"></label>
+          </div>
+          <div class="feedback" id="exFb" aria-live="polite"></div>
+        </div>
+        <div class="board-wrap">
+          <canvas class="board" id="exBoard" aria-label="Tableau de la tortue"></canvas>
+          <div class="legend"><span class="l-target">figure à obtenir</span><span class="l-ink">dessin de ta tortue</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="next-bar"><span class="muted" id="nx5"></span><button class="btn go" data-next="5" disabled>Étape suivante</button></div>
+  </section>
+
+  <!-- 7. DÉFI -->
+  <section class="step" data-step="6">
+    <div class="step-head">
+      <span class="eyebrow">Étape 7 · environ 15 min · défi</span>
+      <h2>La maison, puis le labo des rosaces</h2>
+      <p class="muted">Deux défis pour finir. D'abord, construis une vraie maison en couleurs, pièce par pièce, avec toutes les commandes que tu connais. Ensuite, découvre ce que la tortue sait créer quand on lui apprend à répéter.</p>
+    </div>
+    <div class="card">
+      <div class="work">
+        <div class="stack">
+          <div class="row" style="justify-content:space-between"><h3>Défi 1 · La maison</h3><span class="counter" id="chCount">0 ligne</span></div>
+          <p>Dessine la maison en pointillés, une pièce après l'autre. Le programme de départ te guide : complète chaque partie sous son commentaire (les lignes qui commencent par <code>#</code> sont ignorées par Python).</p>
+          <ul class="explore">
+            <li><b>Les murs</b> : un carré de 200, coin en bas à gauche au point (−100 ; −150).</li>
+            <li><b>Le toit</b> : un triangle équilatéral de 200, posé sur les murs.</li>
+            <li><b>La porte</b> : 50 de large, 100 de haut, au milieu du mur du bas.</li>
+            <li><b>Deux fenêtres</b> : des carrés de 50, à gauche et à droite de la porte.</li>
+          </ul>
+          <p>Utilise au moins <b>3 couleurs</b>. Bonus : ajoute ce que tu veux (soleil avec <code>circle</code>, cheminée, herbe…).</p>
+          <div class="row" id="houseParts"></div>
+          <div class="editor"><div class="gut" id="chGut" aria-hidden="true"></div><textarea id="chCode" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programme de la maison"></textarea></div>
+          <div class="row">
+            <button class="btn go" id="chRun">Exécuter</button>
+            <button class="btn quiet" id="chHint">Indice</button>
+            <label class="speed" for="chSpeed">Vitesse <input type="range" id="chSpeed" min="1" max="10" value="6"></label>
+          </div>
+          <div class="feedback" id="chFb" aria-live="polite"></div>
+        </div>
+        <div class="board-wrap"><canvas class="board" id="chBoard" aria-label="Tableau de la maison"></canvas>
+          <div class="legend"><span class="l-target">maison à obtenir</span><span class="l-ink">dessin de ta tortue</span></div></div>
+      </div>
+    </div>
+    <div class="stack" id="finale" hidden style="margin-top:20px; gap:20px">
+      <div class="card stack" style="border-color:var(--turtle)">
+        <h3>Défi 2 · Le labo des rosaces</h3>
+        <p id="finaleText">Pour les murs de ta maison, tu as écrit 4 fois les deux mêmes lignes. Les programmeurs ont un outil pour éviter ça : la <b>boucle</b>. Avec elle, le carré tient en 3 lignes :</p>
+        <pre class="code">for i in range(4):
+    forward(200)
+    left(90)</pre>
+        <p><code>for i in range(4):</code> veut dire « répète 4 fois ». Les lignes décalées de 4 espaces sont celles qui se répètent. Tu l'apprendras vraiment à la prochaine séance ; pour l'instant, joue avec ! Choisis un modèle, exécute-le, puis modifie les nombres et les couleurs.</p>
+        <div class="work">
+          <div class="stack">
+            <div class="row" id="labPresets"></div>
+            <div class="editor"><div class="gut" id="labGut" aria-hidden="true"></div><textarea id="labCode" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programme du labo"></textarea></div>
+            <div class="row"><button class="btn go" id="labRun">Exécuter</button><label class="speed" for="labSpeed">Vitesse <input type="range" id="labSpeed" min="1" max="10" value="7"></label></div>
+            <div class="feedback" id="labFb" aria-live="polite"></div>
+            <div class="task"><span class="eyebrow">À explorer</span>
+              <ul class="explore">
+                <li><b>Rosace</b> : remplace 18 par 36 et 20 par 10. Calcule 18 × 20, puis 36 × 10. Que remarques-tu ?</li>
+                <li>Mets 25 à la place de 20 : calcule 18 × 25. Pourquoi les carrés ne sont-ils plus répartis régulièrement ?</li>
+                <li><b>Spirale</b> : change 91 en 90, puis en 120 ou en 144.</li>
+                <li><b>Soleil</b> : change 170 en 160, puis en 175.</li>
+                <li>Ajoute une deuxième boucle avec une autre couleur pour superposer deux dessins.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="board-wrap"><canvas class="board" id="labBoard" aria-label="Tableau du labo"></canvas></div>
+        </div>
+      </div>
+      <div class="stack">
+        <h3>Mémo : les mots de la tortue</h3>
+        <div class="memo" id="memo"></div>
+      </div>
+    </div>
+    <div class="next-bar"><span class="muted">Fin de l'activité : bravo pour ton travail !</span><i></i></div>
+  </section>
+  </main>
+  </div>
+
+  <footer class="foot">
+    <span>Tes réponses restent dans ce navigateur, rien n'est envoyé.</span>
+    <span id="resetZone"><button id="resetBtn">Tout recommencer</button></span>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ============ Outils ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) { if (c == null || c === false) continue; e.append(c.nodeType ? c : document.createTextNode(c)); }
+  return e;
+}
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function toast(msg) { const t = h('div', { class: 'toast', role: 'status' }, msg); document.body.append(t); setTimeout(() => t.remove(), 2600); }
+function fb(el, kind, msg) { el.className = 'feedback ' + (kind || ''); el.innerHTML = msg || ''; }
+
+/* ============ Sauvegarde ============ */
+const KEY = 'tortue-snt-autoeval-v1';
+function load() { try { return Object.assign({ unlocked: 0, done: {}, code: {}, ex: {}, follow: {}, dict: {}, pred: {} }, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return { unlocked: 0, done: {}, code: {}, ex: {}, follow: {}, dict: {}, pred: {} }; } }
+let S = load();
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (typeof updateTopProgress === 'function') updateTopProgress(); }
+
+/* ============ Couleurs du thème ============ */
+let TOK = {};
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['paper', 'surface', 'ink', 'muted', 'rule', 'rule-strong', 'accent', 'turtle', 'margin']) TOK[k] = cs.getPropertyValue('--' + k).trim();
+}
+const Boards = new Set();
+function redrawAll() { readTokens(); Boards.forEach(b => b.render()); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
+new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ============ Interpréteur Python (sous-ensemble turtle) ============ */
+class PyErr extends Error { constructor(ln, msg) { super(msg); this.ln = ln; } }
+const err = (ln, msg) => new PyErr(ln, msg);
+const isColor = c => { const o = new Option().style; o.color = c; return o.color !== ''; };
+
+function mkT() { return { x: 0, y: 0, h: 0, pen: true, color: null, size: 2, vis: true }; }
+function mv(T, A, x, y, ln) { A.push({ t: 'mv', x0: T.x, y0: T.y, x1: x, y1: y, pen: T.pen, color: T.color, size: T.size, ln }); T.x = x; T.y = y; }
+function rot(T, A, d, ln) { A.push({ t: 'rt', h0: T.h, h1: T.h + d, ln }); T.h += d; }
+function fwd(T, A, n, ln) { const r = T.h * Math.PI / 180; mv(T, A, T.x + n * Math.cos(r), T.y + n * Math.sin(r), ln); }
+function setS(T, A, p, ln) { Object.assign(T, p); A.push({ t: 'st', p: { ...p }, ln }); }
+const shortest = (from, to) => ((to - from) % 360 + 540) % 360 - 180;
+
+const C = {};
+function def(names, sig, run) { const list = names.split(' '); for (const n of list) C[n] = { sig, run, main: list[0] }; }
+const noop = () => {};
+def('forward fd', 'n', (T, A, [n], ln) => fwd(T, A, n, ln));
+def('backward bk back', 'n', (T, A, [n], ln) => fwd(T, A, -n, ln));
+def('left lt', 'n', (T, A, [a], ln) => rot(T, A, a, ln));
+def('right rt', 'n', (T, A, [a], ln) => rot(T, A, -a, ln));
+def('penup pu up', '', (T, A, _, ln) => setS(T, A, { pen: false }, ln));
+def('pendown pd down', '', (T, A, _, ln) => setS(T, A, { pen: true }, ln));
+def('goto setpos setposition', 'nn', (T, A, [x, y], ln) => mv(T, A, x, y, ln));
+def('setx', 'n', (T, A, [x], ln) => mv(T, A, x, T.y, ln));
+def('sety', 'n', (T, A, [y], ln) => mv(T, A, T.x, y, ln));
+def('setheading seth', 'n', (T, A, [a], ln) => { const d = shortest(T.h, a); if (d) rot(T, A, d, ln); });
+def('home', '', (T, A, _, ln) => { mv(T, A, 0, 0, ln); const d = shortest(T.h, 0); if (d) rot(T, A, d, ln); });
+def('circle', 'nN', (T, A, [r, ext = 360], ln) => {
+  const steps = Math.max(4, Math.ceil(Math.abs(ext) / 6));
+  let w = ext / steps, w2 = w / 2, l = 2 * r * Math.sin(w2 * Math.PI / 180);
+  if (r < 0) { l = -l; w = -w; w2 = -w2; }
+  rot(T, A, w2, ln); for (let i = 0; i < steps; i++) { fwd(T, A, l, ln); rot(T, A, w, ln); } rot(T, A, -w2, ln);
+});
+def('color pencolor', 'sS', (T, A, [c], ln) => setS(T, A, { color: c }, ln));
+def('pensize width', 'n', (T, A, [n], ln) => setS(T, A, { size: n }, ln));
+def('speed', 'X', noop);
+def('hideturtle ht', '', (T, A, _, ln) => setS(T, A, { vis: false }, ln));
+def('showturtle st', '', (T, A, _, ln) => setS(T, A, { vis: true }, ln));
+def('shape fillcolor bgcolor title', 'XX', noop);
+def('done mainloop exitonclick begin_fill end_fill', '', noop);
+def('print', '*', noop);
+
+const FR = { avance: 'forward', avancer: 'forward', av: 'forward', recule: 'backward', reculer: 'backward', re: 'backward', gauche: 'left', tournegauche: 'left', tg: 'left', droite: 'right', tournedroite: 'right', td: 'right', tourne: 'left ou right', tourner: 'left ou right', leve: 'penup', lever: 'penup', levecrayon: 'penup', lc: 'penup', baisse: 'pendown', baisser: 'pendown', baissecrayon: 'pendown', bc: 'pendown', couleur: 'color', va: 'goto', aller: 'goto', vitesse: 'speed', taille: 'pensize', cercle: 'circle', stylo: 'penup ou pendown', repete: 'for i in range(...)', repeter: 'for i in range(...)', move: 'forward', turn: 'left ou right', go: 'goto', pen: 'penup ou pendown', colour: 'color' };
+
+function stripComment(line) { let q = null; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === q) q = null; } else if (c === '"' || c === "'") q = c; else if (c === '#') return line.slice(0, i); } return line; }
+function splitArgs(s) { const out = []; let depth = 0, q = null, cur = ''; for (const c of s) { if (q) { cur += c; if (c === q) q = null; continue; } if (c === '"' || c === "'") { q = c; cur += c; continue; } if (c === '(') depth++; if (c === ')') depth--; if (c === ',' && depth === 0) { out.push(cur); cur = ''; continue; } cur += c; } if (cur.trim() !== '' || out.length) out.push(cur); return out.map(a => a.trim()); }
+
+function compile(src) {
+  const raw = src.replace(/\t/g, '    ').split('\n');
+  const L = [];
+  raw.forEach((line, i) => { const code = stripComment(line).replace(/\s+$/, ''); if (!code.trim()) return; L.push({ ln: i + 1, ind: code.match(/^ */)[0].length, text: code.trim() }); });
+  const imp = { star: false, mod: null, names: new Set(), aliases: new Set() };
+  let pos = 0;
+  function block(ind) {
+    const out = [];
+    while (pos < L.length) {
+      const l = L[pos];
+      if (l.ind < ind) break;
+      if (l.ind > ind) throw err(l.ln, "Cette ligne est décalée (indentée) alors qu'elle ne devrait pas l'être.");
+      pos++; out.push(stmt(l));
+    }
+    return out;
+  }
+  function stmt(l) {
+    const t = l.text, ln = l.ln; let m;
+    if ((m = t.match(/^for\s+([A-Za-z_]\w*)\s+in\s+range\s*\((.*)\)\s*:$/))) {
+      const next = L[pos];
+      if (!next || next.ind <= l.ind) throw err(ln, 'Après « for … : », les lignes à répéter doivent être décalées de 4 espaces.');
+      const args = splitArgs(m[2]);
+      if (args.length < 1 || args.length > 3) throw err(ln, 'range attend 1 nombre, par exemple range(4).');
+      return { k: 'for', v: m[1], args, body: block(next.ind), ln };
+    }
+    if (/^for\b/.test(t)) { if (!/:$/.test(t)) throw err(ln, 'Il manque les deux-points « : » à la fin de la ligne for.'); throw err(ln, 'Une boucle s\'écrit ainsi : for i in range(4):'); }
+    if ((m = t.match(/^(if|while|def|else|elif|return|class)\b/))) throw err(ln, `« ${m[1]} » n'est pas utilisé dans cette activité.`);
+    if (/^from\s+turtle\s+import\s+\*$/.test(t)) { imp.star = true; return { k: 'nop', ln }; }
+    if ((m = t.match(/^from\s+turtle\s+import\s+(.+)$/))) { m[1].split(',').forEach(n => imp.names.add(n.trim())); return { k: 'nop', ln }; }
+    if ((m = t.match(/^import\s+turtle(?:\s+as\s+([A-Za-z_]\w*))?$/))) { imp.mod = m[1] || 'turtle'; return { k: 'nop', ln }; }
+    if (/^(from|import)\b/.test(t)) { if (/turtle/i.test(t) && /Turtle/.test(t) && !/turtle\s/.test(t)) throw err(ln, 'Le module s\'écrit en minuscules : from turtle import *'); throw err(ln, 'Pour utiliser la tortue, écris : from turtle import *'); }
+    if ((m = t.match(/^([A-Za-z_]\w*)\s*=\s*(?:([A-Za-z_]\w*)\.)?Turtle\(\s*\)$/))) {
+      if (m[2] ? m[2] !== imp.mod : !(imp.star || imp.names.has('Turtle'))) throw err(ln, 'Turtle n\'est pas connu : vérifie la ligne import.');
+      imp.aliases.add(m[1]); return { k: 'nop', ln };
+    }
+    if ((m = t.match(/^([A-Za-z_]\w*)\s*=\s*([^=].*)$/))) {
+      if (C[m[1]]) throw err(ln, `« ${m[1]} » est une commande de la tortue, choisis un autre nom de variable.`);
+      return { k: 'set', name: m[1], expr: m[2], ln };
+    }
+    m = t.match(/^(?:([A-Za-z_]\w*)\.)?([A-Za-z_]\w*)\s*\((.*)\)$/);
+    if (!m) {
+      if (/^(?:\w+\.)?\w+\s*\(/.test(t)) throw err(ln, 'Il manque une parenthèse fermante « ) ».');
+      const w = t.match(/^(?:\w+\.)?(\w+)(.*)$/);
+      if (w) {
+        const name = w[1], rest = w[2].trim();
+        if (C[name]) { if (!rest) throw err(ln, `Il manque les parenthèses : ${name}()`); throw err(ln, `Le nombre doit être entre parenthèses : ${name}(${rest})`); }
+        if (C[name.toLowerCase()]) throw err(ln, `Python distingue majuscules et minuscules : écris ${name.toLowerCase()}`);
+        const f = FR[name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')];
+        if (f) throw err(ln, `« ${name} » n'est pas une commande Python. En anglais, on écrit : ${f}`);
+      }
+      throw err(ln, 'Je ne comprends pas cette ligne.');
+    }
+    const [, prefix, name, argStr] = m;
+    const lname = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    if (!C[name]) {
+      if (C[name.toLowerCase()]) throw err(ln, `Python distingue majuscules et minuscules : écris ${name.toLowerCase()}`);
+      if (FR[lname]) throw err(ln, `« ${name} » n'est pas une commande Python. En anglais, on écrit : ${FR[lname]}`);
+      throw err(ln, `La commande « ${name} » n'existe pas pour la tortue. Regarde le mémo de l'étape 4.`);
+    }
+    if (prefix) {
+      if (!(prefix === imp.mod || imp.aliases.has(prefix))) {
+        if (prefix.toLowerCase() === 'turtle') throw err(ln, 'Pour écrire turtle.' + name + '(), il faut d\'abord la ligne : import turtle');
+        throw err(ln, `« ${prefix} » n'est pas défini.`);
+      }
+    } else if (name !== 'print' && !(imp.star || imp.names.has(name))) {
+      if (imp.mod) throw err(ln, `Avec « import turtle », il faut écrire ${imp.mod}.${name}(…). Le plus simple : remplace la première ligne par from turtle import *`);
+      throw err(ln, `${name} n'est pas défini. As-tu écrit from turtle import * en première ligne ?`);
+    }
+    const args = splitArgs(argStr);
+    const sig = C[name].sig;
+    if (sig !== '*') {
+      const min = sig.replace(/[a-z]/g, '').length, max = sig.length;
+      if (args.length < min || args.length > max) {
+        const want = min === max ? (min === 0 ? 'rien entre les parenthèses' : `${min} valeur${min > 1 ? 's' : ''} entre les parenthèses`) : `entre ${min} et ${max} valeurs`;
+        throw err(ln, `${name} attend ${want}.` + (name === 'goto' || name === 'setpos' ? ' Exemple : goto(100, 50)' : ''));
+      }
+    }
+    return { k: 'call', name, args, sig, ln };
+  }
+  const prog = block(0);
+  return prog;
+}
+
+function evalArg(src, env, ln) {
+  src = src.trim();
+  let m = src.match(/^(['"])(.*)\1$/); if (m) return m[2];
+  if (/^['"]/.test(src)) throw err(ln, 'Il manque un guillemet fermant.');
+  if (/^[A-Za-z_]\w*$/.test(src) && typeof env[src] === 'string') return env[src];
+  if (src === '') throw err(ln, 'Il manque une valeur.');
+  if (!/^[\w\s+\-*/().%]+$/.test(src)) throw err(ln, `Je ne comprends pas « ${src} ». Utilise des nombres et + − * /`);
+  let bad = null;
+  const js = src.replace(/\/\//g, '/').replace(/\b[A-Za-z_]\w*\b/g, id => { if (typeof env[id] === 'number') return '(' + env[id] + ')'; bad = bad || id; return '0'; });
+  if (bad) { if (isColor(bad)) throw err(ln, `Le nom de couleur s'écrit entre guillemets : "${bad}"`); throw err(ln, `« ${bad} » n'est pas défini.`); }
+  let v; try { v = Function('"use strict";return (' + js + ')')(); } catch (e) { throw err(ln, `Le calcul « ${src} » est mal écrit.`); }
+  if (typeof v !== 'number' || !isFinite(v)) throw err(ln, `« ${src} » ne donne pas un nombre utilisable.`);
+  return v;
+}
+
+function execute(prog) {
+  const T = mkT(), A = [], env = {}; let count = 0;
+  function ex(list) {
+    for (const s of list) {
+      if (++count > 20000 || A.length > 20000) throw err(s.ln, 'Programme trop long : la tortue est épuisée !');
+      if (s.k === 'nop') continue;
+      if (s.k === 'set') { env[s.name] = evalArg(s.expr, env, s.ln); continue; }
+      if (s.k === 'for') {
+        const a = s.args.map(x => evalArg(x, env, s.ln));
+        if (a.some(v => typeof v !== 'number' || !Number.isInteger(v))) throw err(s.ln, 'range attend un nombre entier, par exemple range(4).');
+        let [start, stop, step] = a.length === 1 ? [0, a[0], 1] : [a[0], a[1], a[2] || 1];
+        if (step === 0) throw err(s.ln, 'Le pas de range ne peut pas être 0.');
+        for (let i = start; step > 0 ? i < stop : i > stop; i += step) { env[s.v] = i; ex(s.body); }
+        continue;
+      }
+      const vals = s.args.map(x => evalArg(x, env, s.ln));
+      if (s.sig !== '*') vals.forEach((v, i) => {
+        const want = s.sig[i];
+        if ((want === 'n' || want === 'N') && typeof v !== 'number') throw err(s.ln, `${s.name} attend un nombre, pas du texte.`);
+        if ((want === 's' || want === 'S') && typeof v !== 'string') throw err(s.ln, `La couleur s'écrit entre guillemets, par exemple ${s.name}("red").`);
+        if ((want === 's' || want === 'S') && !isColor(v)) throw err(s.ln, `« ${v} » n'est pas une couleur connue. Essaie "red", "blue", "green", "orange"…`);
+      });
+      C[s.name].run(T, A, vals, s.ln);
+    }
+  }
+  ex(prog);
+  A.T = T;
+  return A;
+}
+function runCode(src) { return execute(compile(src)); }
+const segsOf = A => A.filter(a => a.t === 'mv' && a.pen && Math.hypot(a.x1 - a.x0, a.y1 - a.y0) > 0.01).map(a => ({ x0: a.x0, y0: a.y0, x1: a.x1, y1: a.y1 }));
+
+/* Comparaison géométrique de deux dessins */
+function sample(segs, step = 4) { const pts = []; for (const s of segs) { const len = Math.hypot(s.x1 - s.x0, s.y1 - s.y0); const n = Math.max(1, Math.ceil(len / step)); for (let i = 0; i <= n; i++) pts.push([s.x0 + (s.x1 - s.x0) * i / n, s.y0 + (s.y1 - s.y0) * i / n]); } return pts; }
+function dPS(p, s) { const dx = s.x1 - s.x0, dy = s.y1 - s.y0, L2 = dx * dx + dy * dy; let t = L2 ? ((p[0] - s.x0) * dx + (p[1] - s.y0) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - s.x0 - t * dx, p[1] - s.y0 - t * dy); }
+const covered = (pts, segs, tol) => pts.every(p => segs.some(s => dPS(p, s) <= tol));
+function sameDrawing(a, b, tol = 4) { if (!a.length || !b.length) return a.length === b.length; return covered(sample(a), b, tol) && covered(sample(b), a, tol); }
+function matchAny(targets, got, tol) { return targets.some(t => sameDrawing(t, got, tol)); }
+
+/* ============ Tableau de la tortue ============ */
+class Board {
+  constructor(canvas, o = {}) {
+    this.c = canvas; this.ctx = canvas.getContext('2d');
+    this.range = o.range || 250; this.grid = o.grid || 50; this.labels = o.labels !== false;
+    this.target = []; this.drawn = []; this.sketch = []; this.cur = null; this.hover = null; this.partial = null;
+    this.T = { x: 0, y: 0, h: 0, vis: true }; this.speed = 5;
+    Boards.add(this);
+    if (window.ResizeObserver) new ResizeObserver(() => this.render()).observe(canvas);
+  }
+  size() { const r = this.c.getBoundingClientRect(); const d = window.devicePixelRatio || 1; const w = Math.max(50, Math.round(r.width * d)); if (this.c.width !== w) { this.c.width = w; this.c.height = w; } this.s = w / (2 * this.range); this.d = d; return r.width > 0; }
+  px(x, y) { return [this.c.width / 2 + x * this.s, this.c.height / 2 - y * this.s]; }
+  world(ev) { const r = this.c.getBoundingClientRect(); const k = (2 * this.range) / r.width; return [(ev.clientX - r.left) * k - this.range, this.range - (ev.clientY - r.top) * k]; }
+  line(x0, y0, x1, y1, color, w, dash) { const g = this.ctx; const [a, b] = this.px(x0, y0), [c, d] = this.px(x1, y1); g.beginPath(); g.setLineDash(dash ? dash.map(v => v * this.d) : []); g.strokeStyle = color; g.lineWidth = w * this.d; g.lineCap = 'round'; g.moveTo(a, b); g.lineTo(c, d); g.stroke(); g.setLineDash([]); }
+  render() {
+    if (!this.size()) return;
+    if (!TOK.ink) readTokens();
+    const g = this.ctx, W = this.c.width;
+    g.fillStyle = TOK.surface; g.fillRect(0, 0, W, W);
+    for (let v = -this.range; v <= this.range; v += this.grid) {
+      const axis = v === 0;
+      this.line(v, -this.range, v, this.range, axis ? TOK['rule-strong'] : TOK.rule, axis ? 1.6 : 1);
+      this.line(-this.range, v, this.range, v, axis ? TOK['rule-strong'] : TOK.rule, axis ? 1.6 : 1);
+    }
+    if (this.labels) {
+      g.fillStyle = TOK.muted; g.font = `${11 * this.d}px "JetBrains Mono", monospace`; g.textAlign = 'center'; g.textBaseline = 'top';
+      for (let v = -this.range + 50; v < this.range; v += 50) { if (v === 0 || v % 100) continue; const [x, y] = this.px(v, 0); g.fillText(v, x, y + 4 * this.d); const [x2, y2] = this.px(0, v); g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(v, x2 + 5 * this.d, y2); g.textAlign = 'center'; g.textBaseline = 'top'; }
+    }
+    for (const s of this.target) this.line(s.x0, s.y0, s.x1, s.y1, TOK['rule-strong'], 5, [8, 7]);
+    for (const s of this.sketch) this.line(s.x0, s.y0, s.x1, s.y1, TOK.margin, 4);
+    if (this.cur && this.hover) this.line(this.cur.x, this.cur.y, this.hover[0], this.hover[1], TOK.margin, 2, [4, 5]);
+    for (const s of this.drawn) this.line(s.x0, s.y0, s.x1, s.y1, s.color ? s.color : TOK.ink, Math.max(1.5, s.size * 1.1));
+    let T = this.T;
+    if (this.partial) {
+      const [a, f] = this.partial;
+      if (a.t === 'mv') { const x = a.x0 + (a.x1 - a.x0) * f, y = a.y0 + (a.y1 - a.y0) * f; if (a.pen) this.line(a.x0, a.y0, x, y, a.color || TOK.ink, Math.max(1.5, a.size * 1.1)); T = { ...T, x, y }; }
+      else if (a.t === 'rt') T = { ...T, h: a.h0 + (a.h1 - a.h0) * f };
+    }
+    if (this.cur) { const [x, y] = this.px(this.cur.x, this.cur.y); g.beginPath(); g.arc(x, y, 6 * this.d, 0, 7); g.strokeStyle = TOK.margin; g.lineWidth = 2.5 * this.d; g.stroke(); }
+    if (T.vis) this.drawTurtle(T);
+  }
+  drawTurtle(T) {
+    const g = this.ctx, [x, y] = this.px(T.x, T.y), k = this.d * Math.max(0.8, Math.min(1.3, this.c.width / this.d / 420));
+    g.save(); g.translate(x, y); g.rotate(-T.h * Math.PI / 180); g.scale(k, k);
+    g.fillStyle = TOK.turtle; g.strokeStyle = TOK.surface; g.lineWidth = 1.5;
+    for (const [lx, ly] of [[5, 7], [5, -7], [-6, 7], [-6, -7]]) { g.beginPath(); g.ellipse(lx, ly, 3.2, 2.4, 0, 0, 7); g.fill(); }
+    g.beginPath(); g.moveTo(-10, 0); g.lineTo(-14, 0); g.lineWidth = 2.5; g.strokeStyle = TOK.turtle; g.stroke();
+    g.beginPath(); g.arc(12, 0, 4, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(0, 0, 10, 8, 0, 0, 7); g.fill(); g.lineWidth = 1.5; g.strokeStyle = TOK.surface; g.stroke();
+    g.beginPath(); g.moveTo(-5, -4); g.lineTo(5, -4); g.moveTo(-5, 4); g.lineTo(5, 4); g.moveTo(0, -7); g.lineTo(0, 7); g.stroke();
+    g.restore();
+  }
+  reset() { this.stop(); this.drawn = []; this.T = { x: 0, y: 0, h: 0, vis: true }; this.partial = null; this.render(); }
+  stop() { this.tok = {}; this.partial = null; }
+  apply(a) {
+    if (a.t === 'mv') { if (a.pen && Math.hypot(a.x1 - a.x0, a.y1 - a.y0) > 0.01) this.drawn.push({ x0: a.x0, y0: a.y0, x1: a.x1, y1: a.y1, color: a.color, size: a.size }); this.T.x = a.x1; this.T.y = a.y1; }
+    else if (a.t === 'rt') this.T.h = a.h1;
+    else if (a.t === 'st' && 'vis' in a.p) this.T.vis = a.p.vis;
+  }
+  dur(a) { const sp = this.speed; if (a.t === 'mv') return Math.min(1500, Math.hypot(a.x1 - a.x0, a.y1 - a.y0) / (0.05 * sp)); if (a.t === 'rt') return Math.min(900, Math.abs(a.h1 - a.h0) / (0.16 * sp)); return 0; }
+  play(A, o = {}) {
+    this.stop(); const tok = {}; this.tok = tok;
+    this.drawn = []; this.T = { x: 0, y: 0, h: 0, vis: true };
+    let i = 0; const from = (o.animate === false || REDUCED) ? A.length : (o.from || 0);
+    for (; i < Math.min(from, A.length); i++) this.apply(A[i]);
+    this.render();
+    if (i >= A.length) { o.onLine && o.onLine(null); return Promise.resolve(true); }
+    let scale = 1;
+    if (o.maxMs) { let tot = 0; for (let k = i; k < A.length; k++) tot += this.dur(A[k]); if (tot > o.maxMs) scale = o.maxMs / tot; }
+    return new Promise(res => {
+      let last = null, into = 0, lastLn = -1;
+      const step = ts => {
+        if (this.tok !== tok) return res(false);
+        if (last === null) last = ts;
+        let budget = Math.min(ts - last, 250); last = ts;
+        while (i < A.length) {
+          const a = A[i], d = this.dur(a) * scale;
+          if (a.ln !== lastLn) { lastLn = a.ln; o.onLine && o.onLine(a.ln); }
+          if (into + budget >= d) { budget -= (d - into); into = 0; this.apply(a); i++; }
+          else { into += budget; this.partial = [a, d ? into / d : 1]; this.render(); requestAnimationFrame(step); return; }
+        }
+        this.partial = null; this.render(); o.onLine && o.onLine(null); res(true);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+}
+
+/* Mode croquis : l'élève trace à la souris, en s'accrochant aux croisements */
+function makeSketch(board, penBtn) {
+  const st = { pen: true, hist: [] };
+  board.cur = { x: 0, y: 0 };
+  const snap = ([x, y]) => { const g = board.grid; const sx = Math.round(x / g) * g, sy = Math.round(y / g) * g; return [Math.max(-board.range, Math.min(board.range, sx)), Math.max(-board.range, Math.min(board.range, sy))]; };
+  const showPen = () => { penBtn.innerHTML = 'Crayon : ' + (st.pen ? '<span class="pen-state down">baissé</span>' : '<span class="pen-state up">levé</span>'); };
+  board.c.addEventListener('pointermove', e => { if (board.locked) return; board.hover = st.pen ? snap(board.world(e)) : null; board.render(); });
+  board.c.addEventListener('pointerleave', () => { board.hover = null; board.render(); });
+  board.c.addEventListener('pointerdown', e => {
+    if (board.locked) return;
+    const [x, y] = snap(board.world(e));
+    if (x === board.cur.x && y === board.cur.y) return;
+    st.hist.push({ sketch: board.sketch.slice(), cur: { ...board.cur }, pen: st.pen });
+    if (st.pen) board.sketch.push({ x0: board.cur.x, y0: board.cur.y, x1: x, y1: y });
+    board.cur = { x, y }; board.render();
+  });
+  penBtn.addEventListener('click', () => { st.pen = !st.pen; showPen(); board.render(); });
+  const api = {
+    undo() { const p = st.hist.pop(); if (!p) return; board.sketch = p.sketch; board.cur = p.cur; st.pen = p.pen; showPen(); board.render(); },
+    clear() { st.hist = []; board.sketch = []; board.cur = { x: 0, y: 0 }; st.pen = true; showPen(); board.drawn = []; board.T = { x: 0, y: 0, h: 0, vis: true }; board.locked = false; board.render(); },
+    segs: () => board.sketch.slice()
+  };
+  showPen(); return api;
+}
+
+/* ============ QCM générique ============ */
+function makeQuiz(root, questions, opts) {
+  const { pass, onPass, onFail, key } = opts;
+  root.innerHTML = '';
+  const qs = questions.map((q, qi) => {
+    const opts = shuffle(q.o.map((t, i) => ({ t, ok: i === 0 })));
+    const box = h('div', { class: 'q' }, q.web ? h('span', { class: 'webtag' }, 'Recherche web') : null, h('div', { class: 'qt', html: `${qi + 1}. ${q.q}` }));
+    const list = h('div', { class: 'opts', role: 'radiogroup' });
+    opts.forEach((o, oi) => { const id = `${root.id}-q${qi}-o${oi}`; list.append(h('label', { class: 'opt', for: id }, h('input', { type: 'radio', name: `${root.id}-q${qi}`, id }), h('span', { html: o.t }))); });
+    const why = h('div', { class: 'why' }); box.append(list, why); root.append(box);
+    return { q, opts, box, list, why };
+  });
+  const out = h('div', { class: 'feedback', 'aria-live': 'polite' });
+  const btn = h('button', { class: 'btn', style: 'margin-top:12px' }, 'Valider mes réponses');
+  root.append(btn, h('div', { style: 'margin-top:12px' }, out));
+  btn.addEventListener('click', () => {
+    if (btn.dataset.mode === 'retry') { makeQuiz(root, questions, opts); return; }
+    let score = 0, missing = 0;
+    qs.forEach(x => { const r = $$('input', x.list).findIndex(i => i.checked); if (r < 0) missing++; });
+    if (missing) { fb(out, 'warn', `Il te reste ${missing} question${missing > 1 ? 's' : ''} sans réponse.`); return; }
+    qs.forEach(x => {
+      const inputs = $$('input', x.list), r = inputs.findIndex(i => i.checked), ok = x.opts[r].ok;
+      if (ok) score++;
+      $$('.opt', x.list).forEach((lab, i) => { lab.classList.toggle('right', x.opts[i].ok); lab.classList.toggle('wrong', i === r && !ok); });
+      inputs.forEach(i => i.disabled = true);
+      if (x.q.why) x.why.innerHTML = (ok ? '' : '<b>Explication :</b> ') + x.q.why;
+    });
+    const n = qs.length;
+    if (key) { S.scores = S.scores || {}; S.scores[key] = Math.max(S.scores[key] || 0, score / n); save(); }
+    if (score >= pass) { fb(out, 'good', `${score} / ${n} : bravo, c'est réussi !`); btn.hidden = true; onPass && onPass(score); }
+    else { fb(out, 'bad', `${score} / ${n}. Il faut au moins ${pass} bonnes réponses. Relis les explications, puis réessaie.`); btn.textContent = 'Réessayer'; btn.dataset.mode = 'retry'; onFail && onFail(score); }
+  });
+}
+
+/* ============ Navigation entre étapes ============ */
+/* Mode test : toutes les étapes sont ouvertes. Mettre false pour imposer l'ordre aux élèves. */
+const OPEN_ALL = false;
+const isFree = () => OPEN_ALL || !!S.teacher || !!S.review;
+const STEPS = ['Histoire', 'Sois la tortue', 'Vocabulary', 'Du geste au code', 'Prédire', 'Coder', 'Défi'];
+let current = Math.min(S.unlocked, STEPS.length - 1);
+function renderNav() {
+  const nav = $('#tabs'); nav.innerHTML = '';
+  STEPS.forEach((name, i) => {
+    const locked = !isFree() && i > S.unlocked;
+    const b = h('button', { 'aria-current': i === current ? 'true' : 'false', class: S.done[i] ? 'done' : '', disabled: locked, title: locked ? 'Termine l\'étape précédente pour débloquer' : '' }, h('span', { class: 'n' }, S.done[i] ? '✓' : String(i + 1)), name);
+    b.addEventListener('click', () => go(i)); nav.append(b);
+  });
+  const doneN = Object.keys(S.done).length;
+  $('#progText').textContent = `Étape ${current + 1} sur ${STEPS.length} · ${doneN} terminée${doneN > 1 ? 's' : ''}`;
+  $$('[data-next]').forEach(b => { const i = +b.dataset.next; b.disabled = !isFree() && !S.done[i]; $('#nx' + i).textContent = S.done[i] ? 'Étape terminée.' : (isFree() ? 'Étape non terminée.' : 'Termine cette étape pour débloquer la suivante.'); });
+}
+function go(i) { current = i; $$('section.step').forEach(s => s.classList.toggle('on', +s.dataset.step === i)); renderNav(); window.scrollTo({ top: 0, behavior: REDUCED ? 'auto' : 'smooth' }); requestAnimationFrame(redrawAll); onShow[i] && onShow[i](); }
+function complete(i) { if (!S.done[i]) { S.done[i] = true; if (S.unlocked < i + 1) S.unlocked = Math.min(i + 1, STEPS.length - 1); save(); toast('Étape ' + (i + 1) + ' terminée'); } renderNav(); }
+$$('[data-next]').forEach(b => b.addEventListener('click', () => go(+b.dataset.next + 1)));
+const onShow = {};
+
+/* Déverrouillage enseignant : triple clic sur le titre */
+$('#title').addEventListener('click', e => { if (e.detail === 3) { S.unlocked = STEPS.length - 1; S.lsQuizOpen = true; S.teacher = true; save(); renderNav(); if (typeof showLesson === 'function') showLesson(lsIdx); if (typeof updateLsQuiz === 'function') updateLsQuiz(false); toast('Mode enseignant : toutes les étapes sont ouvertes'); } });
+$('#resetBtn').addEventListener('click', () => {
+  const z = $('#resetZone'); z.innerHTML = '';
+  z.append('Tout effacer ? ', h('button', { onclick: () => { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); } }, 'Oui, recommencer'), ' ', h('button', { onclick: () => { z.innerHTML = ''; z.append(h('button', { id: 'resetBtn', onclick: () => location.reload() }, 'Tout recommencer')); } }, 'Annuler'));
+});
+
+/* ============ Étape 1 : histoire ============ */
+/* Lien de la vidéo : colle l'adresse entre les guillemets. */
+const VIDEO_URL = 'https://nuage04.apps.education.fr/index.php/s/DTBFgYm9xofkwwT';
+(function () {
+  const cap = h('span', { class: 'cap' }, h('span', null, 'L\'évolution des langages de programmation'), h('small', null, VIDEO_URL ? '≈ 3 min' : 'bientôt'));
+  $('#videoSlot').append(VIDEO_URL
+    ? h('a', { class: 'vid', href: VIDEO_URL, target: '_blank', rel: 'noopener', 'aria-label': 'Ouvrir la vidéo dans un nouvel onglet' }, h('span', { class: 'play', 'aria-hidden': 'true' }), cap)
+    : h('div', { class: 'vid pending' }, h('span', { class: 'play', 'aria-hidden': 'true' }), cap));
+})();
+const TL = [
+  ['1801', 'w', 'Le métier Jacquard', 'Des cartes perforées guident un métier à tisser. On change de motif en changeant les cartes.'],
+  ['1843', 'w', 'Ada Lovelace', 'Elle écrit le premier programme, pour la machine analytique de Babbage, qui ne sera jamais terminée.'],
+  ['1943', 'a', 'Plankalkül', 'Konrad Zuse imagine le premier langage de haut niveau. Jusque-là, on programme en 0 et en 1.'],
+  ['1948', 't', 'Les premières « tortues »', 'À Bristol, en Angleterre, le neurophysiologiste William Grey Walter fabrique de petits robots autonomes, surnommés des tortues.'],
+  ['1951', 'a', 'Le premier compilateur', 'Grace Hopper crée un programme qui traduit le code écrit par un humain en langage machine.'],
+  ['1957', 'a', 'FORTRAN, LISP, COBOL', 'Entre 1957 et 1959, les premiers grands langages : le calcul scientifique, l\'intelligence artificielle, la gestion.'],
+  ['1967', 't', 'Naissance de Logo', 'Seymour Papert, Wally Feurzeig et Cynthia Solomon créent un langage pour que les enfants apprennent en réfléchissant.'],
+  ['1969', 'a', 'Le langage C', 'Entre 1969 et 1973, Dennis Ritchie et Ken Thompson le créent pour écrire le système Unix. Il est encore très utilisé.'],
+  ['1970', 't', 'La tortue robot du MIT', 'Au début des années 1970, reliée à l\'ordinateur par un fil, elle porte un stylo et dessine son trajet sur le sol. Elle passera ensuite à l\'écran.'],
+  ['1980', 't', '« Sois la tortue »', 'Dans son livre <i>Mindstorms</i>, Papert explique qu\'on comprend un programme en jouant la tortue avec son corps.'],
+  ['1985', 't', 'Logo à l\'école', 'Le plan « Informatique pour tous » équipe les écoles françaises : des milliers d\'élèves programment la tortue.'],
+  ['1991', 'r', 'Python', 'Un langage lisible, proche de l\'anglais. C\'est celui que tu utilises en SNT.'],
+  ['1995', 'r', 'Java, JavaScript, PHP', 'Avec l\'essor d\'Internet, de nouveaux langages rendent les pages web dynamiques.'],
+  ['2007', 't', 'Scratch', 'Au MIT, un ancien élève de Papert reprend l\'idée de Logo avec des blocs à assembler.'],
+  ['2010+', 'r', 'Rust, Kotlin, Swift, TypeScript', 'Des langages récents, pensés pour la sûreté du code et pour les applications web et mobiles.']
+];
+const ERA = { w: 'var(--warn)', a: 'var(--accent)', t: 'var(--turtle)', r: 'var(--margin)' };
+TL.forEach(([y, e, t, d]) => $('#tlScroll').append(h('div', { class: 'tl-item' + (e === 't' ? ' turtle' : ''), style: `--era:${ERA[e]}` }, h('div', { class: 'tl-body' }, h('span', { class: 'tl-yr' }, y), h('b', null, t), h('p', { html: d })))));
+$('#tlPrev').onclick = () => $('#tlScroll').scrollBy({ left: -270, behavior: REDUCED ? 'auto' : 'smooth' });
+$('#tlNext').onclick = () => $('#tlScroll').scrollBy({ left: 270, behavior: REDUCED ? 'auto' : 'smooth' });
+$$('.res-nav button').forEach(b => b.addEventListener('click', () => $('#' + b.dataset.go).scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' })));
+$('#startTest').onclick = () => { $('#startTest').hidden = true; $('#quizHistory').hidden = false; };
+makeQuiz($('#quizHistory'), [
+  { q: 'Le métier à tisser Jacquard n\'est pas un ordinateur. Pourquoi a-t-il pourtant sa place dans l\'histoire de la programmation ?', o: ['Pour changer de motif, on change les cartes, pas la machine : les instructions sont séparées de la machine.', 'Il était le premier appareil électrique.', 'Il calculait les nombres de Bernoulli.', 'Il a été inventé par Ada Lovelace.'], why: 'Les cartes perforées sont un programme : la même machine fait des choses différentes selon les instructions qu\'on lui donne. C\'est exactement le principe d\'un ordinateur.' },
+  { q: 'Ada Lovelace a écrit un programme pour une machine qui n\'a jamais été terminée. Qu\'est-ce que cela nous apprend ?', o: ['Un programme est d\'abord une suite d\'étapes réfléchie ; on peut l\'écrire avant même que la machine existe.', 'Son programme ne compte pas, puisqu\'il n\'a jamais fonctionné.', 'Elle a terminé la machine elle-même.', 'Les machines n\'ont pas besoin de programme.'], why: 'Un algorithme est une idée. Ada Lovelace l\'a pensé et écrit sur papier : c\'est pour cela qu\'on la considère comme la première programmeuse.' },
+  { q: 'Compare : <code>10110000 01100001</code> (langage machine) et <code>forward(100)</code> (Python). Quel est le principal avantage d\'un langage comme Python ?', o: ['Il est proche du langage humain : on le lit, l\'écrit et le corrige beaucoup plus facilement.', 'Il fait fonctionner l\'ordinateur sans électricité.', 'Le processeur le comprend directement, sans traduction.', 'Il prend moins de place sur l\'écran.'], why: 'Un humain comprend « forward » ; une suite de 0 et de 1 est presque illisible. Les langages de haut niveau ont rendu la programmation accessible.' },
+  { q: 'Le processeur ne comprend que des 0 et des 1. Pourtant, il exécute ton programme Python. Comment est-ce possible ?', o: ['Un autre programme traduit ton code en instructions machine, comme le compilateur inventé par Grace Hopper.', 'Le processeur apprend Python tout seul.', 'Python est écrit directement en 0 et en 1.', 'Le clavier convertit les lettres en 0 et 1 pendant que tu tapes.'], why: 'C\'est l\'idée de Grace Hopper en 1951 : faire faire la traduction par la machine elle-même. Python utilise un traducteur appelé interpréteur.' },
+  { q: 'FORTRAN pour les sciences, COBOL pour la gestion, JavaScript pour le web… Pourquoi existe-t-il autant de langages ?', o: ['Chacun est conçu pour un type de problème, comme des outils différents dans une boîte à outils.', 'Chaque pays a inventé son propre langage.', 'Les anciens langages ne fonctionnent plus du tout.', 'Les entreprises refusent de partager leurs langages.'], why: 'On ne visse pas avec un marteau : un langage pensé pour le calcul scientifique n\'est pas le meilleur pour une page web.' },
+  { q: 'Les commandes de la tortue sont <b>relatives</b> (« avance », « tourne à gauche ») et non des positions sur une carte (« va au point 3 ; 5 »). Pourquoi ce choix est-il malin pour apprendre ?', o: ['On peut jouer chaque commande avec son propre corps : « tourne à gauche » a toujours un sens depuis l\'endroit où l\'on se trouve.', 'Les ordinateurs des années 1960 ne savaient pas manipuler des nombres.', 'C\'est plus rapide à calculer pour l\'ordinateur.', 'Le système de coordonnées n\'existait pas encore.'], why: 'C\'est l\'idée de Papert : un enfant ne pense pas en coordonnées, mais il sait marcher et tourner. Il comprend l\'instruction en se mettant à la place de la tortue.' },
+  { q: 'La tortue a d\'abord été un robot qui dessinait sur le sol, puis un simple triangle à l\'écran. Les programmes Logo n\'ont pourtant pas eu besoin de changer. Qu\'est-ce que cela montre ?', o: ['Un programme décrit des actions ; peu importe la machine qui les exécute.', 'Le robot et l\'écran utilisaient la même électricité.', 'Les programmes Logo étaient écrits à la main sur papier.', 'Le robot était filmé et projeté à l\'écran.'], why: 'C\'est une idée centrale en informatique : on sépare ce qu\'on veut faire (l\'algorithme) de ce qui l\'exécute (la machine). Comme les cartes de Jacquard !' },
+  { q: 'Un enfant veut faire dessiner un <b>cercle</b> à la tortue. En marchant en rond, il remarque qu\'il avance un peu, tourne un peu, avance un peu… Quel programme en déduit-il ?', o: ['Répéter un grand nombre de fois : avance de 1, tourne de 1°.', 'Avance de 360.', 'Tourne de 360°.', 'Avance de 1, puis tourne de 90°, quatre fois.'], why: 'En répétant 360 fois « avance de 1, tourne de 1° », la tortue fait un tour complet par petits morceaux : on obtient un cercle.' },
+  { q: 'La vidéo conclut que l\'histoire des langages est une quête d\'efficacité, de sécurité et d\'<b>accessibilité</b>. Quel exemple de la frise illustre le mieux l\'accessibilité ?', o: ['Logo puis Scratch, qui permettent à des enfants de programmer.', 'Le langage C, qui sert à écrire des systèmes d\'exploitation.', 'Le langage machine, très rapide.', 'COBOL, utilisé par les banques.'], why: 'Rendre la programmation accessible, c\'est permettre au plus grand nombre de s\'en servir. C\'était tout le projet de Papert.' },
+  { q: 'Avant le MIT, Papert a travaillé plusieurs années à Genève auprès d\'un célèbre spécialiste de la façon dont les enfants construisent leurs connaissances. Qui ?', web: true, o: ['Jean Piaget', 'Maria Montessori', 'Sigmund Freud', 'Albert Einstein'], why: 'Papert a travaillé avec Jean Piaget de 1958 à 1963. Logo s\'inspire directement de ses travaux.' },
+  { q: 'D\'où vient le nom du langage <b>Python</b> ?', web: true, o: ['D\'une troupe d\'humoristes britanniques, les Monty Python', 'Du serpent, parce que le langage est rapide', 'Du nom de son inventeur', 'D\'un mot grec qui veut dire « calcul »'], why: 'Guido van Rossum, son créateur, était fan de l\'émission « Monty Python\'s Flying Circus ».' }
+], { pass: 8, key: 'hist', onPass: () => complete(0) });
+
+/* ============ Étape 3 : sois la tortue ============ */
+const FOLLOW = [
+  { orders: [['Avance de 2 cases', 'forward(100)'], ['Tourne à gauche de 90°', 'left(90)'], ['Avance de 2 cases', 'forward(100)'], ['Tourne à gauche de 90°', 'left(90)'], ['Avance de 1 case', 'forward(50)']] },
+  { orders: [['Avance de 3 cases', 'forward(150)'], ['Tourne à droite de 90°', 'right(90)'], ['Avance de 2 cases', 'forward(100)'], ['Tourne à droite de 90°', 'right(90)'], ['Avance de 1 case', 'forward(50)'], ['Tourne à gauche de 90°', 'left(90)'], ['Avance de 1 case', 'forward(50)']] },
+  { orders: [['Tourne à gauche de 90°', 'left(90)'], ['Avance de 1 case', 'forward(50)'], ['Lève le stylo', 'penup()'], ['Avance de 1 case', 'forward(50)'], ['Baisse le stylo', 'pendown()'], ['Avance de 1 case', 'forward(50)'], ['Tourne à droite de 90°', 'right(90)'], ['Avance de 2 cases', 'forward(100)']] }
+];
+const fBoard = new Board($('#fBoard'), { range: 200, labels: false });
+const fSk = makeSketch(fBoard, $('#fPen'));
+let fIdx = 0; const fTries = {};
+function drawChips(root, n, idx, doneMap, prefix, onPick) {
+  root.innerHTML = '';
+  const seq = prefix !== 'Ex. ' && !isFree();
+  for (let i = 0; i < n; i++) {
+    let locked = false; if (seq && !(doneMap && doneMap[i])) for (let k = 0; k < i; k++) if (!(doneMap && doneMap[k])) locked = true;
+    const c = h('button', { class: 'chip' + (doneMap[i] ? ' ok' : ''), 'aria-pressed': i === idx ? 'true' : 'false', disabled: locked, title: locked ? 'Réussis d\'abord les précédents' : false }, prefix + (i + 1));
+    c.addEventListener('click', () => onPick(i)); root.append(c);
+  }
+}
+function showFollow(i) {
+  fIdx = i; drawChips($('#followChips'), FOLLOW.length, i, S.follow, 'A', showFollow);
+  $('#followOrders').innerHTML = ''; FOLLOW[i].orders.forEach(o => $('#followOrders').append(h('li', null, o[0])));
+  fSk.clear(); fb($('#fFb'));
+}
+$('#fUndo').onclick = () => { fBoard.drawn = []; fBoard.locked = false; fSk.undo(); };
+$('#fClear').onclick = () => { fSk.clear(); fb($('#fFb')); };
+$('#fCheck').onclick = async () => {
+  const code = 'from turtle import *\n' + FOLLOW[fIdx].orders.map(o => o[1]).join('\n');
+  const A = runCode(code), target = segsOf(A), mine = fSk.segs();
+  if (!mine.length) { fb($('#fFb'), 'warn', 'Trace d\'abord le chemin en cliquant sur le quadrillage.'); return; }
+  fBoard.locked = true; fBoard.hover = null; fBoard.speed = 4;
+  await fBoard.play(A);
+  const ok = sameDrawing(target, mine, 5);
+  fTries[fIdx] = (fTries[fIdx] || 0) + 1;
+  if (ok) { fb($('#fFb'), 'good', 'Parfait : ton tracé et celui de la tortue sont identiques !'); S.follow[fIdx] = true; save(); checkStep2(); }
+  else if (fTries[fIdx] >= 3) { fb($('#fFb'), 'info', 'Regarde le vrai trajet tracé à l\'encre. Compare-le à ton tracé rouge, puis passe au défi suivant. Ce défi est validé.'); S.follow[fIdx] = true; save(); checkStep2(); }
+  else { fb($('#fFb'), 'bad', 'Pas tout à fait : compare ton tracé rouge au vrai trajet. Attention au sens des virages : « à gauche » se juge du point de vue de la tortue ! Clique sur « Effacer » et recommence.'); }
+  drawChips($('#followChips'), FOLLOW.length, fIdx, S.follow, 'A', showFollow);
+};
+
+const DICT = [
+  { goal: 'Fais dessiner à la tortue un <b>carré de 2 cases de côté</b>.', sols: ['forward(100)\nleft(90)\nforward(100)\nleft(90)\nforward(100)\nleft(90)\nforward(100)', 'forward(100)\nright(90)\nforward(100)\nright(90)\nforward(100)\nright(90)\nforward(100)'], show: 0 },
+  { goal: 'Fais dessiner à la tortue <b>cet escalier de 2 marches</b> qui monte vers la droite. Chaque marche mesure 1 case de haut et 1 case de large.', sols: ['left(90)\nforward(50)\nright(90)\nforward(50)\nleft(90)\nforward(50)\nright(90)\nforward(50)'], show: 0 },
+  { goal: 'Fais dessiner à la tortue un <b>triangle équilatéral de 3 cases de côté</b> (ses 3 côtés sont égaux et ses 3 angles mesurent 60°).', sols: ['forward(150)\nleft(120)\nforward(150)\nleft(120)\nforward(150)', 'forward(150)\nright(120)\nforward(150)\nright(120)\nforward(150)'], show: 0, trap: true }
+];
+const dBoard = new Board($('#dBoard'), { range: 200, labels: false });
+let dIdx = 0, dProg = [];
+const dLabel = { fd: 'Avance', bk: 'Recule', lt: 'Tourne à gauche', rt: 'Tourne à droite', pu: 'Lève le stylo', pd: 'Baisse le stylo' };
+const dPy = { fd: v => `forward(${v * 50})`, bk: v => `backward(${v * 50})`, lt: v => `left(${v})`, rt: v => `right(${v})`, pu: () => 'penup()', pd: () => 'pendown()' };
+function dTargets(i) { return DICT[i].sols.map(s => segsOf(runCode('from turtle import *\n' + s))); }
+function showDict(i) {
+  dIdx = i; drawChips($('#dictChips'), DICT.length, i, S.dict, 'B', showDict);
+  $('#dictGoal').innerHTML = DICT[i].goal; dProg = []; renderDList(); $('#angleHelp').hidden = true; fb($('#dFb'));
+  dBoard.target = dTargets(i)[DICT[i].show]; dBoard.reset();
+}
+function renderDList() {
+  const ul = $('#dList'); ul.innerHTML = '';
+  dProg.forEach((c, k) => {
+    const txt = c.k === 'fd' || c.k === 'bk' ? `${dLabel[c.k]} de ${c.v} case${c.v > 1 ? 's' : ''}` : c.k === 'lt' || c.k === 'rt' ? `${dLabel[c.k]} de ${c.v}°` : dLabel[c.k];
+    ul.append(h('li', null, h('span', null, txt), h('button', { 'aria-label': 'Supprimer cet ordre', onclick: () => { dProg.splice(k, 1); renderDList(); } }, '×')));
+  });
+}
+$('#dCmd').addEventListener('change', () => {
+  const k = $('#dCmd').value, inp = $('#dVal');
+  if (k === 'fd' || k === 'bk') { $('#dUnit').textContent = 'Cases'; inp.disabled = false; inp.value = 1; inp.step = 1; }
+  else if (k === 'lt' || k === 'rt') { $('#dUnit').textContent = 'Degrés'; inp.disabled = false; inp.value = 90; inp.step = 5; }
+  else { $('#dUnit').textContent = 'Valeur'; inp.disabled = true; inp.value = ''; }
+});
+$('#dAdd').onclick = () => {
+  const k = $('#dCmd').value; const v = parseFloat($('#dVal').value);
+  if ((k === 'fd' || k === 'bk' || k === 'lt' || k === 'rt') && !(v > 0)) { fb($('#dFb'), 'warn', 'Indique une valeur plus grande que 0.'); return; }
+  if (dProg.length >= 30) { fb($('#dFb'), 'warn', 'Trop d\'ordres : 30 au maximum.'); return; }
+  dProg.push({ k, v }); renderDList(); fb($('#dFb'));
+};
+$('#dClear').onclick = () => { dProg = []; renderDList(); dBoard.reset(); fb($('#dFb')); };
+$('#dRun').onclick = async () => {
+  if (!dProg.length) { fb($('#dFb'), 'warn', 'Ajoute d\'abord des ordres avec le bouton « Ajouter ».'); return; }
+  const A = runCode('from turtle import *\n' + dProg.map(c => dPy[c.k](c.v)).join('\n'));
+  dBoard.speed = 4; fb($('#dFb'));
+  await dBoard.play(A);
+  const ok = matchAny(dTargets(dIdx), segsOf(A), 4);
+  if (ok) {
+    fb($('#dFb'), 'good', dIdx === 2 ? 'Bravo, tu as déjoué le piège du triangle !' : 'Bravo, la tortue a dessiné exactement la figure !');
+    S.dict[dIdx] = true; save(); checkStep2(); if (DICT[dIdx].trap) $('#angleHelp').hidden = false;
+  } else {
+    const used60 = DICT[dIdx].trap && dProg.some(c => (c.k === 'lt' || c.k === 'rt') && c.v === 60);
+    fb($('#dFb'), 'bad', used60 ? 'La tortue tourne trop peu, le triangle ne se referme pas. Lis l\'encadré ci-dessous !' : 'La figure ne correspond pas encore. Observe où la tortue se trompe, supprime ou modifie l\'ordre en cause, puis relance.');
+    if (used60) $('#angleHelp').hidden = false;
+  }
+  drawChips($('#dictChips'), DICT.length, dIdx, S.dict, 'B', showDict);
+};
+function checkStep2() { if (FOLLOW.every((_, i) => S.follow[i]) && DICT.every((_, i) => S.dict[i])) complete(1); }
+showFollow(0); showDict(0);
+
+/* ============ Étape 3 : vocabulaire ============ */
+const VOCAB = [
+  ['turtle', 'la tortue', 'from turtle import *'],
+  ['forward', 'en avant (avancer)', 'forward(100)'],
+  ['backward', 'en arrière (reculer)', 'backward(50)'],
+  ['left', 'gauche', 'left(90)'],
+  ['right', 'droite', 'right(90)'],
+  ['to turn', 'tourner', 'the turtle turns left'],
+  ['pen', 'le stylo', 'pensize(3)'],
+  ['up', 'en haut, levé', 'penup()'],
+  ['down', 'en bas, baissé', 'pendown()'],
+  ['pen up', 'lever le stylo', 'penup()'],
+  ['pen down', 'baisser le stylo', 'pendown()'],
+  ['go to', 'aller à', 'goto(100, 50)'],
+  ['color', 'la couleur', 'color("red")'],
+  ['size', 'la taille', 'pensize(5)'],
+  ['speed', 'la vitesse', 'speed(10)'],
+  ['circle', 'le cercle', 'circle(50)'],
+  ['square', 'le carré', 'draw a square'],
+  ['shape', 'la forme', 'shape("turtle")'],
+  ['step', 'le pas', 'one step forward'],
+  ['to draw', 'dessiner', 'the turtle draws a line'],
+  ['to hide', 'cacher', 'hideturtle()'],
+  ['to show', 'montrer', 'showturtle()'],
+  ['home', 'la maison, le point de départ', 'home()'],
+  ['done', 'terminé, fini', 'done()'],
+  ['degree', 'le degré', 'left(90) : 90 degrees'],
+  ['to repeat', 'répéter', 'repeat 4 times']
+];
+let deck = VOCAB.map((_, i) => i), dPos = 0, dirEn = true; const known = new Set();
+function showCard() {
+  const [en, fr, ex] = VOCAB[deck[dPos]];
+  $('#flash').classList.remove('flipped');
+  setTimeout(() => {
+    $('#fLangA').textContent = dirEn ? 'English' : 'Français'; $('#fWordA').textContent = dirEn ? en : fr;
+    $('#fLangB').textContent = dirEn ? 'Français' : 'English'; $('#fWordB').textContent = dirEn ? fr : en; $('#fEx').textContent = ex;
+  }, REDUCED ? 0 : 150);
+  $('#knownN').textContent = known.size; $('#totalN').textContent = VOCAB.length; $('#posN').textContent = (dPos + 1) + ' / ' + deck.length;
+}
+function nextCard() { if (known.size === VOCAB.length) { deck = VOCAB.map((_, i) => i); known.clear(); toast('Tu connais toutes les cartes ! Passe le test.'); } deck = deck.filter(i => !known.has(i)); if (!deck.length) deck = VOCAB.map((_, i) => i); dPos = dPos % deck.length; showCard(); }
+$('#flash').onclick = () => $('#flash').classList.toggle('flipped');
+$('#know').onclick = () => { known.add(deck[dPos]); nextCard(); };
+$('#again').onclick = () => { const c = deck.splice(dPos, 1)[0]; deck.splice(Math.min(deck.length, dPos + 3), 0, c); showCard(); };
+$('#shuffleDeck').onclick = () => { deck = shuffle(deck); dPos = 0; showCard(); };
+$('#dirEn').onclick = () => { dirEn = true; $('#dirEn').setAttribute('aria-pressed', 'true'); $('#dirFr').setAttribute('aria-pressed', 'false'); showCard(); };
+$('#dirFr').onclick = () => { dirEn = false; $('#dirFr').setAttribute('aria-pressed', 'true'); $('#dirEn').setAttribute('aria-pressed', 'false'); showCard(); };
+$('#speak').onclick = () => { try { const u = new SpeechSynthesisUtterance(VOCAB[deck[dPos]][0]); u.lang = 'en-GB'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { toast('La lecture audio n\'est pas disponible sur cet appareil.'); } };
+document.addEventListener('keydown', e => { if (current !== 2 || $('#vocabCards').hidden || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return; if (e.key === 'ArrowRight') { $('#know').click(); } else if (e.key === 'ArrowLeft') { $('#again').click(); } });
+function vocabQuestions() {
+  const pick = shuffle(VOCAB.map((_, i) => i)).slice(0, 8);
+  const qs = pick.map((i, k) => {
+    const [en, fr] = VOCAB[i]; const others = shuffle(VOCAB.filter((_, j) => j !== i)).slice(0, 3);
+    return k % 2 === 0
+      ? { q: `Que veut dire <b>${en}</b> ?`, o: [fr, ...others.map(o => o[1])], why: `<b>${en}</b> = ${fr}.` }
+      : { q: `Comment dit-on <b>${fr}</b> en anglais ?`, o: [en, ...others.map(o => o[0])], why: `${fr} = <b>${en}</b>.` };
+  });
+  qs.push({ q: '<code>pen</code> + <code>up</code> = <code>penup()</code>, lever le stylo. Sur le même modèle, quelle commande baisse le stylo ?', o: ['<code>pendown()</code>', '<code>downpen()</code>', '<code>penlow()</code>', '<code>pencil()</code>'], why: 'down = en bas : <code>pendown()</code>.' });
+  qs.push({ q: 'Tu ne l\'as jamais vue, mais que fait sans doute la commande <code>showturtle()</code> ?', o: ['Elle fait réapparaître la tortue.', 'Elle dessine une tortue.', 'Elle affiche la vitesse de la tortue.', 'Elle remet la tortue au centre.'], why: 'to show = montrer : c\'est le contraire de <code>hideturtle()</code>.' });
+  qs.push({ q: 'Read the code: <code>forward(100)</code> <code>left(90)</code> <code>forward(50)</code>. Which sentence describes it?', o: ['The turtle moves forward 100 steps, turns left and moves forward 50 steps.', 'The turtle moves backward 100 steps, turns right and moves forward 50 steps.', 'The turtle turns left 100 times and draws a circle.', 'The turtle moves forward 50 steps, turns right and stops.'], why: 'forward = en avant, left = à gauche, steps = pas.' });
+  return qs;
+}
+function startVocabTest() { $('#vocabCards').hidden = true; $('#vocabTest').hidden = false; makeQuiz($('#quizVocab'), vocabQuestions(), { pass: 8, key: 'vocab', onPass: () => complete(2) }); }
+$('#ready').onclick = startVocabTest;
+$('#backCards').onclick = () => { $('#vocabCards').hidden = false; $('#vocabTest').hidden = true; };
+showCard();
+
+/* ============ Étape 5 : du geste au code, notion par notion ============ */
+const TURNS = `<div class="turns">
+  <div><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="var(--rule-strong)" stroke-width="2"/><path d="M52 30 A22 22 0 0 0 30 8" fill="none" stroke="var(--accent)" stroke-width="4"/><circle cx="30" cy="30" r="4" fill="var(--turtle)"/></svg><b>90°</b><br>un quart de tour</div>
+  <div><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="var(--rule-strong)" stroke-width="2"/><path d="M52 30 A22 22 0 0 0 8 30" fill="none" stroke="var(--accent)" stroke-width="4"/><circle cx="30" cy="30" r="4" fill="var(--turtle)"/></svg><b>180°</b><br>un demi-tour</div>
+  <div><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="22" fill="none" stroke="var(--accent)" stroke-width="4"/><circle cx="30" cy="30" r="4" fill="var(--turtle)"/></svg><b>360°</b><br>un tour complet</div>
+</div>`;
+const near = (a, b) => Math.abs(a - b) < 0.5;
+const hmod = h => ((Math.round(h) % 360) + 360) % 360;
+const LESSONS = [
+  { title: 'Un programme, c\'est une liste d\'ordres',
+    lesson: '<p>Un programme Python est une suite d\'instructions, <b>une par ligne</b>. Python les lit <b>de haut en bas</b>, dans l\'ordre, comme une recette de cuisine.</p><p>La première ligne, <code>from turtle import *</code>, veut dire : « depuis la boîte à outils <i>turtle</i>, importe tout ». Sans elle, Python ne connaît pas la tortue.</p>',
+    task: 'Exécute ce programme et observe la tortue. Ensuite, efface la première ligne et exécute de nouveau : lis le message d\'erreur. Remets enfin la ligne et exécute une dernière fois.',
+    start: 'from turtle import *\nforward(100)\n',
+    hint: 'Clique sur « Exécuter ». Pour effacer la première ligne, sélectionne-la et supprime-la.',
+    onError(e, st) { if (/from turtle import/.test(e.message)) { st.sawErr = true; return 'C\'est l\'erreur attendue : sans la première ligne, Python ne sait pas ce qu\'est <code>forward</code>. Remets <code>from turtle import *</code> en première ligne et exécute.'; } },
+    check(A, st) { if (!segsOf(A).length) return [false, 'La tortue n\'a pas bougé. Garde la ligne <code>forward(100)</code>.']; if (!st.sawErr) return ['info', 'La tortue avance ! Maintenant, efface la première ligne et exécute : que se passe-t-il ?']; return [true, 'Tu as compris le rôle de la première ligne : sans elle, pas de tortue.']; } },
+  { title: 'Avancer : forward',
+    lesson: '<p><code>forward(100)</code> fait avancer la tortue de 100 <b>pixels</b>, droit devant elle. Un pixel est l\'un des minuscules points lumineux qui forment l\'écran.</p><p><b>Dans les exercices de cette page uniquement</b>, une case du quadrillage mesure 50 pixels, pour t\'aider à compter. Dans un autre logiciel, il n\'y a pas de quadrillage.</p><p>Règles d\'écriture : la commande en <b>minuscules</b>, le nombre <b>entre parenthèses</b>.</p><div class="ex">forward(50)    # avance de 1 case\nforward(100)   # avance de 2 cases</div>',
+    task: 'Fais avancer la tortue de <b>3 cases</b>.',
+    start: 'from turtle import *\n', target: 'forward(150)',
+    hint: '1 case = 50 pixels, donc 3 cases = 3 × 50 pixels.' },
+  { title: 'Reculer : backward',
+    lesson: '<p><code>backward(50)</code> fait reculer la tortue de 50 pixels.</p><p>Attention : elle <b>ne se retourne pas</b>. Elle recule comme une voiture en marche arrière : sa tête reste tournée dans le même sens.</p>',
+    task: 'La tortue avance de 3 cases. Ajoute <b>une seule ligne</b> pour qu\'elle revienne exactement au centre.',
+    start: 'from turtle import *\nforward(150)\n',
+    hint: 'Elle doit reculer d\'autant qu\'elle a avancé.',
+    check(A) { const T = A.T; if (!near(T.x, 0) || !near(T.y, 0)) return [false, `La tortue n'est pas revenue au centre : elle est au point (${fmt(T.x)} ; ${fmt(T.y)}). Regarde le tableau de bord.`]; if (hmod(T.h) !== 0) return [false, 'Elle est revenue, mais en se retournant. Utilise <code>backward</code> pour qu\'elle reste tournée vers la droite.']; return [true, 'Elle est revenue au centre sans se retourner : sa direction n\'a pas changé.']; } },
+  { title: 'Tourner : left et right',
+    lesson: '<p><code>left(90)</code> fait tourner la tortue <b>sur place</b> de 90 degrés vers <b>sa</b> gauche ; <code>right(90)</code>, vers sa droite. Quand elle tourne, elle ne se déplace pas et ne dessine rien.</p>' + TURNS + '<p>Gauche et droite se jugent du point de vue de la tortue, pas du tien : regarde où pointe sa tête !</p>',
+    task: 'Sans la déplacer, fais regarder la tortue <b>vers le bas de l\'écran</b>. Il existe deux solutions, l\'une avec <code>right</code>, l\'autre avec <code>left</code> : trouve-les toutes les deux !',
+    start: 'from turtle import *\n',
+    hint: 'Vers le bas, c\'est un quart de tour vers sa droite… ou trois quarts de tour vers sa gauche.',
+    check(A, st) { const T = A.T; if (segsOf(A).length || !near(T.x, 0) || !near(T.y, 0)) return [false, 'La tortue s\'est déplacée. Ici, elle doit seulement tourner.']; if (hmod(T.h) !== 270) return [false, `La tortue regarde ${dirWord(T.h)}. Ce n'est pas encore vers le bas.`]; st.found = st.found || {}; st.found[T.h < 0 ? 'right' : 'left'] = true; return st.found.right && st.found.left ? [true, 'Bravo, tu as trouvé les deux solutions : 90° à droite = 270° à gauche.'] : [true, 'Bien joué ! Essaie maintenant l\'autre solution, avec ' + (st.found.right ? '<code>left</code>.' : '<code>right</code>.')]; } },
+  { title: 'L\'ordre compte',
+    lesson: '<p>Python exécute les lignes <b>dans l\'ordre</b>, de haut en bas. Les mêmes instructions, dans un ordre différent, donnent un autre dessin.</p><div class="ex">forward(100)        left(90)\nleft(90)            forward(100)\n# vers la droite    # vers le haut</div>',
+    task: 'Toutes les bonnes instructions sont là, mais mélangées. Remets-les dans l\'ordre pour obtenir la figure en pointillés.',
+    start: 'from turtle import *\nleft(90)\nforward(100)\nforward(50)\nleft(90)\nforward(100)\n', target: 'forward(100)\nleft(90)\nforward(100)\nleft(90)\nforward(50)',
+    hint: 'Suis la figure en pointillés avec ton doigt, depuis le centre. Le premier trait part vers la droite.' },
+  { title: 'Lever le stylo : penup et pendown',
+    lesson: '<p>La tortue tient un stylo. <code>penup()</code> le <b>lève</b> : elle se déplace sans dessiner. <code>pendown()</code> le <b>baisse</b> : elle dessine de nouveau.</p><p>Ces commandes n\'ont pas de nombre, mais elles gardent leurs parenthèses vides : <code>()</code>.</p>',
+    task: 'Ajoute <code>penup()</code> et <code>pendown()</code> au bon endroit pour obtenir : un trait, un espace, un trait.',
+    start: 'from turtle import *\nforward(50)\nforward(50)\nforward(50)\n', target: 'forward(50)\npenup()\nforward(50)\npendown()\nforward(50)',
+    hint: 'Lève le stylo juste avant le déplacement qui ne doit pas laisser de trace, et baisse-le juste après.' },
+  { title: 'Se repérer : goto(x, y)',
+    lesson: '<p>Le centre du tableau est le point (0 ; 0). <b>x</b> se compte vers la droite (négatif vers la gauche) et <b>y</b> vers le haut (négatif vers le bas). Les nombres sur les axes t\'aident à lire les positions.</p><p><code>goto(100, 50)</code> envoie la tortue directement au point x = 100, y = 50, en ligne droite, <b>sans changer sa direction</b>. Si le stylo est baissé, elle dessine son trajet. En Python, une <b>virgule</b> sépare x et y.</p>',
+    task: 'Dessine le triangle en pointillés avec trois <code>goto</code> : la tortue va au point (100 ; 0), puis au point (0 ; 100), puis revient au centre.',
+    start: 'from turtle import *\n', target: 'goto(100, 0)\ngoto(0, 100)\ngoto(0, 0)',
+    hint: 'Première ligne après l\'import : <code>goto(100, 0)</code>. Continue de la même façon.' },
+  { title: 'Habiller le dessin : color et pensize',
+    lesson: '<p><code>color("red")</code> change la couleur du trait. Le nom de la couleur est <b>en anglais</b> et <b>entre guillemets</b>, car c\'est du texte. Essaie "blue", "green", "orange", "purple", "gold"…</p><p><code>pensize(5)</code> change l\'épaisseur du trait. Ces réglages s\'appliquent à tout ce qui est dessiné <b>après</b> eux.</p>',
+    task: 'Dessine un trait <b>rouge</b>, d\'épaisseur <b>5</b>, long de <b>2 cases</b>.',
+    start: 'from turtle import *\n', target: 'forward(100)',
+    hint: 'Écris d\'abord <code>color("red")</code> et <code>pensize(5)</code>, puis le déplacement.',
+    check(A) { const mv = A.filter(a => a.t === 'mv' && a.pen && Math.hypot(a.x1 - a.x0, a.y1 - a.y0) > 0.01); if (!mv.length) return [false, 'La tortue n\'a rien dessiné.']; if (!mv.every(a => (a.color || '').toLowerCase() === 'red')) return [false, 'Le trait n\'est pas rouge partout. As-tu écrit <code>color("red")</code> <b>avant</b> le déplacement ?']; if (!mv.every(a => a.size === 5)) return [false, 'L\'épaisseur n\'est pas 5. As-tu écrit <code>pensize(5)</code> avant le déplacement ?']; return null; } }
+];
+function fmt(v) { const r = Math.round(v * 10) / 10; return String(Object.is(r, -0) ? 0 : r).replace('.', ','); }
+function dirWord(h) { const m = hmod(h); return { 0: 'vers la droite', 90: 'vers le haut', 180: 'vers la gauche', 270: 'vers le bas' }[m] || `à ${m}°`; }
+function showState(T) { $('#stPos').textContent = `(${fmt(T.x)} ; ${fmt(T.y)})`; $('#stDir').textContent = dirWord(T.h); $('#stPen').textContent = T.pen ? 'baissé' : 'levé'; }
+S.lessons = S.lessons || {};
+const lsBoard = new Board($('#lsBoard'), { range: 200 });
+const lsEd = makeEditor({ ta: $('#lsCode'), gut: $('#lsGut'), board: lsBoard, fbEl: $('#lsFb'), speedEl: { value: 4 } });
+let lsIdx = 0; const lsState = LESSONS.map(() => ({}));
+const lsTargets = i => LESSONS[i].target ? segsOf(runCode('from turtle import *\n' + LESSONS[i].target)) : [];
+function updateLsQuiz(reveal) {
+  const n = LESSONS.filter((_, i) => S.lessons[i]).length;
+  $('#lsDoneN').textContent = n;
+  const open = n === LESSONS.length || S.lsQuizOpen;
+  $('#lsLock').hidden = open; $('#lsQuizCard').hidden = !open;
+  if (open && reveal) $('#lsQuizCard').scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'start' });
+  return open;
+}
+function showLesson(i) {
+  lsIdx = i; const L = LESSONS[i];
+  drawChips($('#lsChips'), LESSONS.length, i, S.lessons, '', showLesson);
+  $('#lsCount').textContent = `Notion ${i + 1} sur ${LESSONS.length}`;
+  $('#lsTitle').textContent = L.title; $('#lsLesson').innerHTML = L.lesson; $('#lsTask').innerHTML = L.task;
+  lsEd.set(S.code['ls' + i] !== undefined ? S.code['ls' + i] : L.start);
+  lsBoard.target = lsTargets(i); lsBoard.reset(); showState({ x: 0, y: 0, h: 0, pen: true }); fb($('#lsFb'));
+  $('#lsPrev').disabled = i === 0;
+  $('#lsNext').disabled = i < LESSONS.length - 1 && !S.lessons[i] && !isFree();
+  $('#lsNext').title = $('#lsNext').disabled ? 'Réussis cette notion pour passer à la suivante' : '';
+  $('#lsNext').textContent = i === LESSONS.length - 1 ? 'Aller au questionnaire' : 'Notion suivante';
+}
+$('#lsCode').addEventListener('input', () => { S.code['ls' + lsIdx] = $('#lsCode').value; save(); });
+$('#lsReset').onclick = () => { lsEd.set(LESSONS[lsIdx].start); delete S.code['ls' + lsIdx]; save(); lsBoard.reset(); showState({ x: 0, y: 0, h: 0, pen: true }); fb($('#lsFb')); };
+$('#lsHint').onclick = () => fb($('#lsFb'), 'info', '<b>Indice :</b> ' + LESSONS[lsIdx].hint);
+$('#lsPrev').onclick = () => { if (lsIdx > 0) showLesson(lsIdx - 1); };
+$('#lsNext').onclick = () => { if (lsIdx < LESSONS.length - 1) showLesson(lsIdx + 1); else if (!updateLsQuiz(true)) { const miss = LESSONS.map((_, k) => k + 1).filter(k => !S.lessons[k - 1]); fb($('#lsFb'), 'warn', `Le questionnaire s'ouvrira quand toutes les notions seront réussies. Il te reste : notion${miss.length > 1 ? 's' : ''} ${miss.join(', ')}.`); } };
+$('#lsRun').onclick = async () => {
+  const L = LESSONS[lsIdx], st = lsState[lsIdx];
+  const r = await lsEd.run(null);
+  if (!r) { const e = lsEd.lastError; const msg = e && L.onError && L.onError(e, st); if (msg) fb($('#lsFb'), 'info', msg); return; }
+  showState(r.A.T);
+  let res = L.check ? L.check(r.A, st) : null;
+  if (!res && L.target) res = sameDrawing(lsTargets(lsIdx), r.got, 3) ? [true, 'Exactement la figure demandée !'] : [false, r.got.length ? 'Le dessin ne correspond pas encore à la figure en pointillés. Compare-les et regarde le tableau de bord.' : 'La tortue n\'a rien dessiné.'];
+  if (!res) res = [true, 'Réussi !'];
+  const [ok, msg] = res;
+  if (ok === 'info') { fb($('#lsFb'), 'info', msg); return; }
+  fb($('#lsFb'), ok ? 'good' : 'bad', msg + (ok && lsIdx < LESSONS.length - 1 ? ' Passe à la notion suivante quand tu es prêt·e.' : ''));
+  if (ok) { S.lessons[lsIdx] = true; save(); $('#lsNext').disabled = false; $('#lsNext').title = ''; drawChips($('#lsChips'), LESSONS.length, lsIdx, S.lessons, '', showLesson); if (updateLsQuiz(false) && LESSONS.every((_, k) => S.lessons[k])) fb($('#lsFb'), 'good', msg + ' Toutes les notions sont réussies : le questionnaire est ouvert, plus bas.'); }
+};
+showLesson(0);
+updateLsQuiz(false);
+makeQuiz($('#quizCode'), [
+  { q: 'La tortue part de (0 ; 0), tournée vers la droite. Elle exécute <code>forward(100)</code>, <code>left(90)</code>, <code>forward(50)</code>. Où se trouve-t-elle ?', o: ['(100 ; 50)', '(50 ; 100)', '(100 ; −50)', '(150 ; 0)'], why: 'Elle va de 100 vers la droite, tourne vers le haut, puis monte de 50. Vérifie dans l\'éditeur des notions : le tableau de bord affiche la position.' },
+  { q: 'Quel programme ramène la tortue exactement à son point de départ ?', o: ['<code>forward(100)</code> <code>left(180)</code> <code>forward(100)</code>', '<code>forward(100)</code> <code>left(90)</code> <code>forward(100)</code>', '<code>forward(100)</code> <code>right(90)</code> <code>backward(100)</code>', '<code>forward(100)</code> <code>backward(50)</code>'], why: 'Un demi-tour (180°) puis la même distance : la tortue revient sur ses pas. <code>forward(100)</code> puis <code>backward(100)</code> marcherait aussi.' },
+  { q: 'Tourner de 270° vers la gauche revient au même que…', o: ['<code>right(90)</code>', '<code>left(90)</code>', '<code>right(270)</code>', '<code>backward(90)</code>'], why: '270° à gauche, c\'est trois quarts de tour. Il manque un quart de tour pour faire le tour complet : la tortue regarde donc comme après un quart de tour à droite.' },
+  { q: 'Un élève écrit <code>Forward(100)</code> et Python affiche une erreur. Pourquoi ?', o: ['Python distingue majuscules et minuscules : la commande s\'appelle forward.', 'Le nombre 100 est trop grand.', 'Il faut écrire le nombre entre guillemets.', 'forward n\'existe pas, il faut écrire avance.'], why: 'Pour Python, <code>Forward</code> et <code>forward</code> sont deux mots différents.' },
+  { q: 'On veut dessiner <b>deux traits séparés par un espace</b>. Quel programme convient ?', o: ['<code>forward(50)</code> <code>penup()</code> <code>forward(50)</code> <code>pendown()</code> <code>forward(50)</code>', '<code>forward(50)</code> <code>pendown()</code> <code>forward(50)</code> <code>penup()</code> <code>forward(50)</code>', '<code>penup()</code> <code>forward(50)</code> <code>forward(50)</code> <code>pendown()</code>', '<code>forward(50)</code> <code>hideturtle()</code> <code>forward(50)</code> <code>forward(50)</code>'], why: 'On lève le stylo juste avant le déplacement qui ne doit pas laisser de trace, et on le baisse juste après.' },
+  { q: 'Le programme <code>forward(100)</code> <code>left(90)</code> <code>forward(100)</code> <code>left(90)</code> <code>forward(100)</code> <code>left(90)</code> <code>forward(100)</code> dessine un carré. Que se passe-t-il si on remplace tous les <code>left</code> par des <code>right</code> ?', o: ['On obtient le même carré, mais dessiné en dessous de la ligne de départ.', 'On n\'obtient plus de carré.', 'Le carré est deux fois plus grand.', 'Python affiche une erreur.'], why: 'La tortue tourne dans l\'autre sens : le carré est le même, mais il se construit vers le bas au lieu du haut.' }
+], { pass: 5, key: 'code', onPass: () => complete(3) });
+
+/* ============ Étape 5 : prédire ============ */
+const PRED = [
+  'from turtle import *\nforward(100)\nleft(90)\nforward(100)',
+  'from turtle import *\nforward(100)\nright(90)\nforward(100)\nright(90)\nforward(100)\nright(90)\nforward(100)',
+  'from turtle import *\nforward(50)\npenup()\nforward(50)\npendown()\nforward(50)\nleft(90)\nforward(100)',
+  'from turtle import *\ngoto(100, 100)\ngoto(100, 0)\npenup()\ngoto(-100, 0)\npendown()\ngoto(-100, -100)'
+];
+const pBoard = new Board($('#pBoard'), { range: 200 });
+const pSk = makeSketch(pBoard, $('#pPen'));
+let pIdx = 0;
+function showPred(i) { pIdx = i; drawChips($('#predChips'), PRED.length, i, S.pred, 'Code ', showPred); $('#predCode').textContent = PRED[i]; pSk.clear(); fb($('#pFb')); }
+$('#pUndo').onclick = () => { pBoard.drawn = []; pBoard.locked = false; pSk.undo(); };
+$('#pClear').onclick = () => { pSk.clear(); fb($('#pFb')); };
+$('#pCheck').onclick = async () => {
+  const mine = pSk.segs();
+  if (!mine.length) { fb($('#pFb'), 'warn', 'Dessine d\'abord ta prédiction en cliquant sur le quadrillage.'); return; }
+  const A = runCode(PRED[pIdx]); pBoard.locked = true; pBoard.hover = null; pBoard.speed = 3;
+  await pBoard.play(A);
+  const ok = sameDrawing(segsOf(A), mine, 5);
+  const tips = ['Le premier virage se fait à gauche : la tortue monte.', 'right(90) fait tourner vers la droite de la tortue : ici, elle descend d\'abord.', 'Entre penup() et pendown(), la tortue avance sans dessiner : il y a un trou.', 'goto trace une ligne droite (même en biais !) tant que le stylo est baissé. Repère les coordonnées sur les axes.'];
+  fb($('#pFb'), ok ? 'good' : 'bad', ok ? 'Prédiction exacte : tu lis le code comme un pro !' : 'Ta prédiction diffère du vrai dessin. ' + tips[pIdx]);
+  S.pred[pIdx] = S.pred[pIdx] || (ok ? 'ok' : 'tried'); save();
+  drawChips($('#predChips'), PRED.length, pIdx, S.pred, 'Code ', showPred);
+  if (PRED.every((_, i) => S.pred[i])) complete(4);
+};
+showPred(0);
+
+/* ============ Éditeur de code ============ */
+function makeEditor({ ta, gut, board, fbEl, speedEl, maxMs }) {
+  let curLn = null, errLn = null;
+  const drawGut = () => { const n = ta.value.split('\n').length; let s = ''; for (let i = 1; i <= n; i++) s += (i === curLn ? `<span class="cur">${i}</span>` : i === errLn ? `<span class="err">${i}</span>` : i) + '\n'; gut.innerHTML = s; gut.scrollTop = ta.scrollTop; };
+  ta.addEventListener('input', () => { errLn = null; drawGut(); });
+  ta.addEventListener('scroll', () => { gut.scrollTop = ta.scrollTop; });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('    ', s, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); }
+    else if (e.key === 'Enter') {
+      const s = ta.selectionStart, before = ta.value.slice(0, s), line = before.slice(before.lastIndexOf('\n') + 1);
+      let ind = line.match(/^ */)[0]; if (/:\s*$/.test(line)) ind += '    ';
+      e.preventDefault(); ta.setRangeText('\n' + ind, s, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input'));
+    }
+  });
+  const api = {
+    set(code) { ta.value = code; errLn = null; curLn = null; drawGut(); },
+    async run(targets) {
+      let A; errLn = null; api.lastError = null;
+      try { A = runCode(ta.value); }
+      catch (e) { if (e instanceof PyErr) { errLn = e.ln; drawGut(); fb(fbEl, 'bad', `Ligne ${e.ln} : ${e.message}`); api.lastError = e; } else { fb(fbEl, 'bad', 'Erreur inattendue : vérifie ton code.'); } return null; }
+      fb(fbEl); board.speed = +speedEl.value;
+      await board.play(A, { maxMs, onLine: ln => { curLn = ln; drawGut(); } });
+      const got = segsOf(A);
+      return { A, got, ok: targets ? matchAny(targets, got, 3) : null };
+    },
+    redraw: drawGut
+  };
+  drawGut(); return api;
+}
+
+/* ============ Étape 6 : exercices ============ */
+const EX = [
+  { kind: 'Compléter', title: 'Le carré incomplet', text: 'Il manque une ligne à ce programme pour fermer le carré de côté 100. Ajoute-la à la place du commentaire.',
+    start: 'from turtle import *\nforward(100)\nleft(90)\nforward(100)\nleft(90)\nforward(100)\nleft(90)\n# il manque une ligne ici\n',
+    sols: ['forward(100)\nleft(90)\nforward(100)\nleft(90)\nforward(100)\nleft(90)\nforward(100)'], hint: 'Le carré a 4 côtés. Compte combien de fois la tortue avance.' },
+  { kind: 'Écrire', title: 'Le rectangle', text: 'Dessine un rectangle de <b>150 pixels de large</b> et <b>100 pixels de haut</b>, en partant vers la droite.',
+    start: 'from turtle import *\n', sols: ['forward(150)\nleft(90)\nforward(100)\nleft(90)\nforward(150)\nleft(90)\nforward(100)', 'forward(150)\nright(90)\nforward(100)\nright(90)\nforward(150)\nright(90)\nforward(100)'], hint: 'Comme le carré, mais les côtés alternent : 150, 100, 150, 100.' },
+  { kind: 'Déboguer', title: 'Le triangle cassé', text: 'Ce programme devrait dessiner un triangle équilatéral de côté 100, mais il est bogué. Trouve et corrige l\'erreur.',
+    start: 'from turtle import *\nforward(100)\nleft(60)\nforward(100)\nleft(60)\nforward(100)\n', sols: ['forward(100)\nleft(120)\nforward(100)\nleft(120)\nforward(100)', 'forward(100)\nright(120)\nforward(100)\nright(120)\nforward(100)'], hint: 'Souviens-toi du piège du triangle : la tortue tourne de l\'angle extérieur, 360 ÷ 3.' },
+  { kind: 'Déboguer', title: 'Le trait parasite', text: 'On veut <b>deux carrés séparés</b>, mais un trait relie les deux. Corrige le programme en ajoutant deux lignes.',
+    start: 'from turtle import *\n# premier carré\nforward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)\nleft(90)\n# on va vers le deuxième carré\ngoto(100, 0)\n# deuxième carré\nforward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)\n',
+    sols: ['forward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)\nleft(90)\npenup()\ngoto(100, 0)\npendown()\nforward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)\nleft(90)\nforward(50)'], hint: 'Il faut lever le stylo avant le déplacement, et le baisser après.' },
+  { kind: 'Créer', title: 'Le drapeau', text: 'Dessine un drapeau : un <b>mât</b> vertical de 150 qui part du centre vers le haut, puis, en haut du mât, un <b>drapeau rectangulaire</b> de 100 de large et 60 de haut, tourné vers la droite.',
+    start: 'from turtle import *\n', sols: ['left(90)\nforward(150)\nright(90)\nforward(100)\nright(90)\nforward(60)\nright(90)\nforward(100)'], hint: 'Commence par left(90) pour que la tortue regarde vers le haut. En haut du mât, tourne à droite et dessine le rectangle en tournant toujours à droite.' },
+  { kind: 'Créer', title: 'L\'escalier', text: 'Dessine un escalier de <b>3 marches</b> qui monte vers la droite. Chaque marche mesure 50 de haut et 50 de large. Commence par monter.',
+    start: 'from turtle import *\n', sols: ['left(90)\nforward(50)\nright(90)\nforward(50)\nleft(90)\nforward(50)\nright(90)\nforward(50)\nleft(90)\nforward(50)\nright(90)\nforward(50)'], hint: 'Une marche = monter de 50, puis aller à droite de 50. Répète 3 fois en alternant left(90) et right(90).' },
+  { kind: 'Créer', title: 'L\'hexagone', text: 'Dessine un <b>hexagone régulier</b> (6 côtés égaux) de côté 80.',
+    start: 'from turtle import *\n', sols: [Array(6).fill('forward(80)\nleft(60)').join('\n'), Array(6).fill('forward(80)\nright(60)').join('\n')], hint: 'Règle du polygone régulier : la tortue tourne de 360 ÷ nombre de côtés.' }
+];
+const exBoard = new Board($('#exBoard'), { range: 250 });
+const exEd = makeEditor({ ta: $('#exCode'), gut: $('#exGut'), board: exBoard, fbEl: $('#exFb'), speedEl: $('#exSpeed') });
+let exIdx = 0;
+const exTargets = i => EX[i].sols.map(s => segsOf(runCode('from turtle import *\n' + s)));
+function showEx(i) {
+  if (S.code['ex' + exIdx] !== undefined || $('#exCode').value) { S.code['ex' + exIdx] = $('#exCode').value; save(); }
+  exIdx = i; const e = EX[i];
+  drawChips($('#exChips'), EX.length, i, S.ex, 'Ex. ', showEx);
+  $('#exKind').textContent = e.kind; $('#exTitle').textContent = e.title; $('#exText').innerHTML = e.text;
+  exEd.set(S.code['ex' + i] !== undefined ? S.code['ex' + i] : e.start);
+  exBoard.target = exTargets(i)[0]; exBoard.reset(); fb($('#exFb'));
+}
+$('#exCode').addEventListener('input', () => { S.code['ex' + exIdx] = $('#exCode').value; save(); });
+$('#exReset').onclick = () => { exEd.set(EX[exIdx].start); S.code['ex' + exIdx] = EX[exIdx].start; save(); exBoard.reset(); fb($('#exFb')); };
+$('#exHint').onclick = () => fb($('#exFb'), 'info', '<b>Indice :</b> ' + EX[exIdx].hint);
+$('#exRun').onclick = async () => {
+  const r = await exEd.run(exTargets(exIdx)); if (!r) return;
+  if (r.ok) { fb($('#exFb'), 'good', 'Réussi : ton dessin correspond exactement à la figure !'); S.ex[exIdx] = true; save(); drawChips($('#exChips'), EX.length, exIdx, S.ex, 'Ex. ', showEx); if (Object.keys(S.ex).length >= 5) complete(5); }
+  else if (!r.got.length) fb($('#exFb'), 'warn', 'Ton programme fonctionne mais la tortue n\'a rien dessiné. Ajoute des déplacements.');
+  else fb($('#exFb'), 'bad', 'Le programme s\'exécute sans erreur, mais le dessin ne correspond pas encore à la figure en pointillés. Observe où la tortue s\'écarte.');
+};
+exIdx = 0; showEx(0);
+
+/* ============ Étape 8 : défi ============ */
+const chBoard = new Board($('#chBoard'), { range: 250 });
+const chEd = makeEditor({ ta: $('#chCode'), gut: $('#chGut'), board: chBoard, fbEl: $('#chFb'), speedEl: $('#chSpeed') });
+const sq = (x, y, w, hgt) => `penup()\ngoto(${x}, ${y})\npendown()\nforward(${w})\nleft(90)\nforward(${hgt})\nleft(90)\nforward(${w})\nleft(90)\nforward(${hgt})\nleft(90)`;
+const HOUSE = [
+  ['Murs', sq(-100, -150, 200, 200)],
+  ['Toit', 'penup()\ngoto(-100, 50)\npendown()\nforward(200)\nleft(120)\nforward(200)\nleft(120)\nforward(200)\nleft(120)'],
+  ['Porte', sq(-25, -150, 50, 100)],
+  ['Fenêtres', sq(-85, -20, 50, 50) + '\n' + sq(35, -20, 50, 50)]
+].map(([n, c]) => [n, segsOf(runCode('from turtle import *\n' + c))]);
+chBoard.target = HOUSE.flatMap(x => x[1]);
+const HOUSE_START = 'from turtle import *\npensize(3)\n\n# 1. Les murs : un carré de 200\ncolor("saddlebrown")\npenup()\ngoto(-100, -150)\npendown()\n# à toi : dessine le carré\n\n\n# 2. Le toit : un triangle équilatéral de 200, en rouge\n# il part du coin en haut à gauche des murs\n\n\n# 3. La porte : 50 de large, 100 de haut\n\n\n# 4. Les deux fenêtres : des carrés de 50\n\n';
+const countLines = () => { const n = $('#chCode').value.split('\n').filter(l => stripComment(l).trim()).length; $('#chCount').textContent = n + (n > 1 ? ' lignes' : ' ligne'); return n; };
+$('#chCode').addEventListener('input', () => { countLines(); S.code.ch = $('#chCode').value; save(); });
+chEd.set(S.code.ch !== undefined ? S.code.ch : HOUSE_START); countLines();
+function showParts(state) { const r = $('#houseParts'); r.innerHTML = ''; HOUSE.forEach(([n], i) => r.append(h('span', { class: 'chip' + (state && state[i] ? ' ok' : '') }, n))); }
+showParts(null);
+let chHints = 0;
+const CH_HINTS = [
+  '<b>Les murs</b> : la tortue est déjà au bon coin. Avance de 200, tourne de 90° à gauche, et recommence jusqu\'à fermer le carré.',
+  '<b>Le toit</b> : lève le stylo, va au point (−100 ; 50), baisse le stylo, change de couleur. Souviens-toi du piège du triangle : la tortue tourne de 120°.',
+  '<b>La porte</b> : son coin en bas à gauche est au point (−25 ; −150). Dessine un rectangle : 50, puis 100, puis 50, puis 100. Vérifie que la tortue regarde vers la droite avant de commencer !',
+  '<b>Les fenêtres</b> : leurs coins en bas à gauche sont aux points (−85 ; −20) et (35 ; −20). Lis les coordonnées sur les axes.'
+];
+$('#chHint').onclick = () => { fb($('#chFb'), 'info', `<b>Indice ${chHints + 1} :</b> ` + CH_HINTS[chHints]); chHints = (chHints + 1) % CH_HINTS.length; };
+$('#chRun').onclick = async () => {
+  const r = await chEd.run(null); if (!r) return;
+  const state = HOUSE.map(([, t]) => r.got.length > 0 && covered(sample(t), r.got, 4));
+  S.house = Math.max(S.house || 0, state.filter(Boolean).length); save();
+  showParts(state);
+  const colors = new Set(r.A.filter(a => a.t === 'mv' && a.pen).map(a => (a.color || 'black').toLowerCase()));
+  if (state.every(Boolean)) {
+    const n = countLines();
+    fb($('#chFb'), 'good', colors.size >= 3 ? `Superbe maison, en ${colors.size} couleurs ! Ton programme fait ${n} lignes.` : `La maison est complète ! Il ne manque que les couleurs : utilise au moins 3 couleurs différentes.`);
+    if (colors.size >= 3) {
+      S.houseColors = true; save();
+      $('#finaleText').innerHTML = `Ta maison fait ${n} lignes. Pour les murs, la porte et les fenêtres, tu as écrit plusieurs fois les deux mêmes lignes. Les programmeurs ont un outil pour éviter ça : la <b>boucle</b>. Avec elle, un carré tient en 3 lignes :`;
+      $('#finale').hidden = false; complete(6);
+    }
+  } else {
+    const miss = HOUSE.filter((_, i) => !state[i]).map(x => x[0].toLowerCase());
+    fb($('#chFb'), r.got.length ? 'bad' : 'warn', r.got.length ? `Encore un effort : il manque ou il faut corriger ${miss.join(', ')}. Compare ton dessin aux pointillés.` : 'La tortue n\'a rien dessiné. Complète la partie 1 sous le commentaire.');
+  }
+};
+const PRESETS = {
+  'Rosace': 'from turtle import *\ncolor("purple")\npensize(2)\nfor i in range(18):\n    forward(100)\n    left(90)\n    forward(100)\n    left(90)\n    forward(100)\n    left(90)\n    forward(100)\n    left(90)\n    left(20)\n',
+  'Spirale': 'from turtle import *\ncolor("teal")\npensize(2)\nfor i in range(80):\n    forward(i * 3)\n    left(91)\n',
+  'Fleur': 'from turtle import *\ncolor("crimson")\nfor i in range(12):\n    circle(80)\n    left(30)\n',
+  'Soleil': 'from turtle import *\ncolor("orange")\npenup()\ngoto(-100, 0)\npendown()\nfor i in range(36):\n    forward(200)\n    left(170)\n'
+};
+const labBoard = new Board($('#labBoard'), { range: 250 });
+const labEd = makeEditor({ ta: $('#labCode'), gut: $('#labGut'), board: labBoard, fbEl: $('#labFb'), speedEl: $('#labSpeed'), maxMs: 9000 });
+Object.keys(PRESETS).forEach(k => $('#labPresets').append(h('button', { class: 'chip', onclick: e => { $$('#labPresets .chip').forEach(c => c.setAttribute('aria-pressed', 'false')); e.currentTarget.setAttribute('aria-pressed', 'true'); labEd.set(PRESETS[k]); S.code.lab = PRESETS[k]; save(); labEd.run(null); } }, k)));
+labEd.set(S.code.lab !== undefined ? S.code.lab : PRESETS['Rosace']);
+$('#labCode').addEventListener('input', () => { S.code.lab = $('#labCode').value; save(); });
+$('#labRun').onclick = () => labEd.run(null);
+const MEMO = [['forward(n)', 'avancer'], ['backward(n)', 'reculer'], ['left(a)', 'tourner à gauche'], ['right(a)', 'tourner à droite'], ['penup()', 'lever le stylo'], ['pendown()', 'baisser le stylo'], ['goto(x, y)', 'aller au point (x ; y)'], ['color("red")', 'couleur du trait'], ['pensize(n)', 'épaisseur du trait'], ['circle(r)', 'cercle de rayon r'], ['speed(n)', 'vitesse'], ['hideturtle()', 'cacher la tortue'], ['for i in range(n):', 'répéter n fois (prochaine séance)']];
+MEMO.forEach(([c, t]) => $('#memo').append(h('div', null, h('code', null, c), h('span', { class: 'muted' }, t))));
+if (S.done[6] || isFree()) $('#finale').hidden = false;
+
+
+/* ============ Accueil, fin d'activité et résultats ============ */
+const VIEWS = ['Welcome', 'Results', 'Steps'];
+function showView(v) {
+  VIEWS.forEach(n => { $('#view' + n).hidden = n !== v; });
+  $('#progBox').hidden = v !== 'Steps'; $('#topbar').hidden = v !== 'Steps'; updateTopProgress();
+  window.scrollTo({ top: 0 });
+  if (v === 'Steps') requestAnimationFrame(redrawAll);
+}
+function showWho() { $('#whoAmI').textContent = S.student ? `${S.student.prenom} ${S.student.nom.toUpperCase()}` : ''; }
+$('#startBtn').onclick = () => {
+  const nom = $('#stNom').value.trim(), prenom = $('#stPrenom').value.trim();
+  if (!nom || !prenom) { fb($('#welcomeFb'), 'warn', 'Écris ton nom de famille et ton prénom pour commencer.'); (nom ? $('#stPrenom') : $('#stNom')).focus(); return; }
+  S.student = { nom, prenom }; save(); showWho(); showView('Steps'); go(current);
+};
+$$('.next-bar').forEach(nb => nb.insertBefore(h('button', { class: 'btn quiet time-btn', 'data-time': true }, 'Temps terminé, voir mon bilan'), nb.lastElementChild));
+$$('[data-time]').forEach(b => b.addEventListener('click', openBilan));
+function openBilan() { if (!S.finished) { S.finished = true; S.finishedAt = Date.now(); } S.review = false; save(); renderResults(); showView('Results'); }
+
+
+
+const cnt = (o, n) => { let k = 0; for (let i = 0; i < n; i++) if (o && o[i]) k++; return k; };
+function gradeParts() {
+  const sc = S.scores || {};
+  let pred = 0; for (let i = 0; i < 4; i++) pred += S.pred && S.pred[i] === 'ok' ? 1 : S.pred && S.pred[i] ? 0.5 : 0;
+  return [
+    ['Histoire de la programmation', 3, sc.hist || 0],
+    ['Sois la tortue', 2, (cnt(S.follow, 3) + cnt(S.dict, 3)) / 6],
+    ['Vocabulaire anglais', 3, sc.vocab || 0],
+    ['Notions Python', 3, cnt(S.lessons, 8) / 8],
+    ['Questionnaire Python', 2, sc.code || 0],
+    ['Prédire le dessin', 2, pred / 4],
+    ['Coder', 3, cnt(S.ex, 7) / 7],
+    ['Défi : la maison', 2, ((S.house || 0) / 4) * 0.75 + (S.houseColors ? 0.25 : 0)]
+  ].map(([name, max, f]) => ({ name, max, f: Math.max(0, Math.min(1, f)), pts: Math.round(max * Math.max(0, Math.min(1, f)) * 4) / 4 }));
+}
+const nfr = v => String(v).replace('.', ',');
+const ESSENTIAL = [
+  ['Un programme', 'est une suite d\'instructions exécutées dans l\'ordre, de haut en bas.'],
+  ['Python est exigeant', ': minuscules, parenthèses, guillemets autour du texte.'],
+  ['from turtle import *', ': en première ligne, pour utiliser la tortue.'],
+  ['forward(n) / backward(n)', ': avancer / reculer de n pixels, sans se retourner.'],
+  ['left(a) / right(a)', ': tourner sur place de a degrés (90° = un quart de tour).'],
+  ['penup() / pendown()', ': lever / baisser le stylo.'],
+  ['goto(x, y)', ': aller au point (x ; y). Le centre est le point (0 ; 0).'],
+  ['color("red") / pensize(n)', ': couleur et épaisseur du trait.'],
+  ['Polygone régulier', ': la tortue tourne de 360 ÷ nombre de côtés (triangle : 120°).'],
+  ['Histoire', ': Logo et sa tortue (1967, Seymour Papert), Python (1991).']
+];
+const SELF = [['ok', 'Je sais faire'], ['almost', 'Presque'], ['todo', 'Pas encore']];
+const quizTxt = (key, n, label) => { const f = (S.scores || {})[key]; return f === undefined ? { f: 0, txt: `${label} : pas encore fait` } : { f, txt: `${label} : ${Math.round(f * n)} / ${n}` }; };
+const OBJ = [
+  { t: 'Raconter les grandes étapes de l\'histoire de la programmation et de la tortue Logo', step: () => 0, res: () => quizTxt('hist', 11, 'Test d\'histoire'), tip: 'Relis la frise et l\'article de CTRL+Z, puis refais le test.' },
+  { t: 'Donner des ordres précis à une tortue, sans ordinateur', step: () => 1, res: () => { const k = cnt(S.follow, 3) + cnt(S.dict, 3); return { f: k / 6, txt: `Défis réussis : ${k} / 6` }; }, tip: 'Refais les défis A et B en te mettant à la place de la tortue. Attention au sens des virages !' },
+  { t: 'Comprendre le vocabulaire anglais des commandes', step: () => 2, res: () => quizTxt('vocab', 11, 'Test de vocabulaire'), tip: 'Révise les cartes dans le sens français → anglais, puis repasse le test.' },
+  { t: 'Écrire mes premières instructions Python', step: () => 3, res: () => { const k = cnt(S.lessons, 8), q = (S.scores || {}).code; return { f: (k / 8 + (q || 0)) / 2, txt: `Notions : ${k} / 8 · Questionnaire : ${q === undefined ? 'pas fait' : Math.round(q * 6) + ' / 6'}` }; }, tip: 'Reprends les notions une par une et observe le tableau de bord de la tortue après chaque exécution.' },
+  { t: 'Prévoir le dessin d\'un programme et corriger mes erreurs', step: () => { let ok = 0; for (let i = 0; i < 4; i++) if (S.pred && S.pred[i] === 'ok') ok++; return ok < 4 ? 4 : 5; }, res: () => { let ok = 0; for (let i = 0; i < 4; i++) if (S.pred && S.pred[i] === 'ok') ok++; const e = cnt(S.ex, 7); return { f: (ok / 4 + e / 7) / 2, txt: `Prédictions justes : ${ok} / 4 · Exercices : ${e} / 7` }; }, tip: 'Relis les codes de l\'étape Prédire ligne par ligne, puis reprends les exercices de l\'étape Coder avec les indices.' },
+  { t: 'Créer un dessin complet en Python', step: () => 6, res: () => { const k = S.house || 0; return { f: k / 4 * (S.houseColors ? 1 : 0.9), txt: `Maison : ${k} / 4 pièces${S.houseColors ? ', en couleurs' : ''}` }; }, tip: 'Reprends la maison pièce par pièce : les murs, puis le toit, la porte et les fenêtres. Utilise les indices.' }
+];
+function goReview(step) { S.review = true; S.lsQuizOpen = true; save(); showView('Steps'); renderNav(); go(step); $$('[data-time]').forEach(b => b.textContent = 'Revenir à mon bilan'); }
+function bilanComment() {
+  const p = S.student ? S.student.prenom : '';
+  const self = S.self || {}, rated = OBJ.filter((_, i) => self[i]).length, ok = OBJ.filter((_, i) => self[i] === 'ok').length;
+  if (rated < OBJ.length) return `Bravo pour ton travail, ${p} ! Regarde tes résultats et fais le point sur chaque objectif : c'est comme ça qu'on progresse.`;
+  if (ok === OBJ.length) return `Tu estimes maîtriser les 6 objectifs, ${p} : super ! Tu es prêt·e pour la suite. Tu peux aussi aider un camarade.`;
+  if (ok >= 3) return `Tu estimes maîtriser ${ok} objectifs sur 6, ${p}. C'est une belle séance ! Prends le temps de revoir les autres parties : tu as tout ce qu'il faut.`;
+  return `Merci pour ton honnêteté, ${p}. Apprendre à programmer prend du temps, et tu as déjà fait tes premiers pas. Revois une partie à la fois, et pose ta question à ton professeur.`;
+}
+function renderResults() {
+  const d = new Date(S.finishedAt || Date.now());
+  $('#resDate').textContent = 'Premiers pas avec la tortue · ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  $('#resName').textContent = S.student ? S.student.prenom : '';
+  $('#resComment').textContent = bilanComment();
+  S.self = S.self || {};
+  const list = $('#selfList'); list.innerHTML = '';
+  OBJ.forEach((o, i) => {
+    const r = o.res(), v = S.self[i];
+    const need = r.f < 1 || (v && v !== 'ok');
+    const item = h('div', { class: 'self-item' + (v === 'ok' && r.f >= 1 ? ' good' : need && v ? ' need' : '') });
+    const choices = h('div', { class: 'self-choices', role: 'group', 'aria-label': 'Où j\'en suis' }, h('span', null, 'Où j\'en suis :'));
+    SELF.forEach(([k, lab]) => choices.append(h('button', { class: 'chip', 'data-v': k, 'aria-pressed': v === k ? 'true' : 'false', onclick: () => { S.self[i] = k; save(); renderResults(); } }, lab)));
+    item.append(
+      h('div', { class: 'self-top' }, h('b', null, o.t), h('span', { class: 'self-res' }, r.txt)),
+      h('div', { class: 'meter' }, h('i', { style: `width:${Math.round(Math.min(1, r.f) * 100)}%` })),
+      choices,
+      h('div', { class: 'self-review' }, h('p', null, need ? o.tip : 'Bien joué ! Tu peux quand même revoir cette partie si tu veux.'), h('button', { class: 'btn quiet', onclick: () => goReview(o.step()) }, 'Revoir cette partie'))
+    );
+    list.append(item);
+  });
+  $('#myQuestion').value = S.question || '';
+  const ess = $('#essList'); ess.innerHTML = '';
+  ESSENTIAL.forEach(([k, v]) => ess.append(h('div', null, h('span', null, /[()*]/.test(k) ? h('code', null, k) : h('b', null, k), ' ' + v))));
+}
+$('#myQuestion').addEventListener('input', () => { S.question = $('#myQuestion').value; save(); });
+
+/* Fichier à télécharger : bilan + l'essentiel, en image PNG */
+async function buildSheet() {
+  try { await document.fonts.ready; } catch (e) {}
+  const W = 1240, H = 1900, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const INK = '#1b2550', MUTED = '#5b6587', ACC = '#2a44c4', GREEN = '#23875a';
+  const DISP = '"Bricolage Grotesque", "Trebuchet MS", sans-serif', BODY = '"Atkinson Hyperlegible", "Segoe UI", sans-serif', MONO = '"JetBrains Mono", Consolas, monospace';
+  const SELFC = { ok: ['Je sais faire', GREEN], almost: ['Presque', '#9a5d00'], todo: ['Pas encore', '#d63c48'] };
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+  const wrap = (text, x, y, maxW, lh, font, color) => {
+    g.font = font; g.fillStyle = color; g.textAlign = 'left';
+    const words = text.split(' '); let line = '';
+    for (const w of words) { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > maxW && line) { g.fillText(line, x, y); y += lh; line = w; } else line = t; }
+    if (line) { g.fillText(line, x, y); y += lh; }
+    return y;
+  };
+  const d = new Date(S.finishedAt || Date.now());
+  g.fillStyle = INK; g.fillRect(0, 0, W, 190);
+  g.fillStyle = '#ffc93c'; g.font = `700 22px ${BODY}`; g.textAlign = 'left'; g.fillText('SNT · PREMIERS PAS AVEC LA TORTUE · ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase(), 70, 70);
+  g.fillStyle = '#ffffff'; g.font = `800 64px ${DISP}`; g.fillText('Mon bilan', 70, 145);
+  g.textAlign = 'right'; g.font = `800 40px ${DISP}`; g.fillText(S.student ? `${S.student.prenom} ${S.student.nom.toUpperCase()}` : '', W - 70, 145);
+  let y = 250;
+  OBJ.forEach((o, i) => {
+    const r = o.res(), v = (S.self || {})[i];
+    y = wrap(o.t, 70, y, 820, 32, `700 26px ${BODY}`, INK);
+    g.font = `22px ${MONO}`; g.fillStyle = MUTED; g.textAlign = 'left'; g.fillText(r.txt, 70, y + 2);
+    const [lab, col] = v ? SELFC[v] : ['Non renseigné', MUTED];
+    g.font = `700 24px ${BODY}`; const tw = g.measureText(lab).width;
+    g.strokeStyle = col; g.lineWidth = 3; g.beginPath(); g.roundRect ? g.roundRect(W - 90 - tw - 30, y - 62, tw + 30, 44, 22) : g.rect(W - 90 - tw - 30, y - 62, tw + 30, 44); g.stroke();
+    g.fillStyle = col; g.textAlign = 'center'; g.fillText(lab, W - 90 - tw / 2 - 15, y - 32);
+    y += 26; g.fillStyle = '#e1e6f4'; g.fillRect(70, y, W - 140, 2); y += 46;
+  });
+  g.textAlign = 'left'; g.font = `700 24px ${BODY}`; g.fillStyle = MUTED; g.fillText('MA QUESTION POUR LA PROCHAINE FOIS', 70, y); y += 38;
+  y = wrap((S.question || '').trim() || '(pas de question)', 70, y, W - 140, 34, `italic 26px ${BODY}`, INK) + 30;
+  g.font = `800 44px ${DISP}`; g.fillStyle = INK; g.fillText('L\'essentiel à retenir', 70, y); y += 22;
+  g.fillStyle = GREEN; g.fillRect(70, y, 120, 6); y += 46;
+  ESSENTIAL.forEach(([k, v]) => {
+    const code = /[()*]/.test(k);
+    g.font = code ? `600 24px ${MONO}` : `700 24px ${BODY}`; g.fillStyle = code ? ACC : INK; g.textAlign = 'left'; g.fillText(k, 100, y);
+    const kw = g.measureText(k).width;
+    g.fillStyle = GREEN; g.save(); g.translate(80, y - 9); g.rotate(Math.PI / 4); g.fillRect(-6, -6, 12, 12); g.restore();
+    const rest = v.startsWith(':') ? v : ' ' + v;
+    g.font = `24px ${BODY}`;
+    if (100 + kw + g.measureText(rest).width < W - 70) { g.fillStyle = INK; g.fillText(rest, 100 + kw + (rest.startsWith(':') ? 6 : 0), y); y += 44; }
+    else { y = wrap(rest.trim(), 130, y + 34, W - 220, 32, `24px ${BODY}`, INK) + 12; }
+  });
+  g.textAlign = 'center'; g.font = `italic 20px ${BODY}`; g.fillStyle = MUTED; g.fillText('À ranger dans ton dossier SNT privé sur Pearltrees', W / 2, H - 40);
+  return c;
+}
+$('#dlBtn').onclick = async () => {
+  const c = await buildSheet();
+  const base = S.student ? `${S.student.nom}-${S.student.prenom}` : 'eleve';
+  const name = ('bilan-tortue-' + base).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9-]+/g, '-').toLowerCase() + '.png';
+  c.toBlob(blob => {
+    if (!blob) { fb($('#dlFb'), 'bad', 'Le fichier n\'a pas pu être créé. Appelle ton professeur.'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    fb($('#dlFb'), 'info', `Le fichier <b>${name}</b> a été téléchargé : cherche-le dans ton dossier Téléchargements, puis dépose-le dans ton dossier SNT privé sur Pearltrees.`);
+  }, 'image/png');
+};
+
+/* Barre de progression : chaque exercice réussi compte */
+function updateTopProgress() {
+  let pred = 0; for (let i = 0; i < 4; i++) if (S.pred && S.pred[i]) pred++;
+  const done = (S.done && S.done[0] ? 1 : 0) + cnt(S.follow, 3) + cnt(S.dict, 3) + (S.done && S.done[2] ? 1 : 0) + cnt(S.lessons, 8) + (S.done && S.done[3] ? 1 : 0) + pred + cnt(S.ex, 7) + ((S.house || 0) >= 4 && S.houseColors ? 1 : 0);
+  const pct = Math.round(done / 29 * 100);
+  $('#topFill').style.width = pct + '%'; $('#topPct').textContent = pct + ' %'; $('#topTrack').setAttribute('aria-valuenow', pct);
+}
+
+/* ============ Démarrage ============ */
+readTokens();
+onShow[3] = () => lsEd.redraw(); onShow[5] = () => exEd.redraw(); onShow[6] = () => { chEd.redraw(); labEd.redraw(); };
+showWho();
+if (S.finished && !S.review) { renderResults(); showView('Results'); }
+else if (S.finished && S.review) { showView('Steps'); go(current); $$('[data-time]').forEach(b => b.textContent = 'Revenir à mon bilan'); }
+else if (!S.student) showView('Welcome');
+else { showView('Steps'); go(current); }
+</script>
